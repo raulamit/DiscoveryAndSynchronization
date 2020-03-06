@@ -1,0 +1,1537 @@
+definitions:
+  Altitude:
+    description: 'An altitude, in meters, above the WGS84 ellipsoid.'
+    example: 19.5
+    format: float
+    type: number
+  DeleteIdentificationServiceAreaResponse:
+    description: Response for a request to delete an Identification Service Area.
+    properties:
+      service_area:
+        description: Indentification Service Area that was just deleted.
+      subscribers:
+        description: >-
+          DSS subscribers that this client now has the obligation to notify of
+          the Identification Service Area just deleted.  This client must call
+          DELETE for each provided URL according to the
+          `/uss/identification_service_areas` path API.
+        items:
+          $ref: '#/definitions/SubscriberToNotify'
+        type: array
+    required:
+    - service_area
+    - subscribers
+    type: object
+  DeleteSubscriptionResponse:
+    description: Response for a successful request to delete an Subscription.
+    properties:
+      subscription:
+        description: The Subscription which was deleted.
+    required:
+    - subscription
+    type: object
+  EntityUUID:
+    description: >-
+      Universally-unique identifier for an Entity communicated through the DSS. 
+      Formatted as UUIDv4.
+  ErrorResponse:
+    description: Data provided when an off-nominal condition was encountered.
+    properties:
+      message:
+        description: Human-readable message indicating what error occurred and/or why.
+        type: string
+    type: object
+  GeoPolygon:
+    description: >-
+      An enclosed area on the earth.
+
+      The bounding edges of this polygon shall be the shortest paths between
+      connected vertices.  This means, for instance, that the edge between two
+      points both defined at a particular latitude is not generally contained at
+      that latitude.
+
+      The winding order shall be interpreted as the order which produces the
+      smaller area.
+
+      The path between two vertices shall be the shortest possible path between
+      those vertices.
+
+      Edges may not cross.
+
+      Vertices may not be duplicated.  In particular, the final polygon vertex
+      shall not be identical to the first vertex.
+    properties:
+      vertices:
+        items:
+          $ref: '#/definitions/LatLngPoint'
+        minItems: 3
+        type: array
+    required:
+    - vertices
+    type: object
+  GeoPolygonString:
+    description: >-
+      Plain-string representation of a geographic polygon consisting of at least
+      three geographic points describing a closed polygon on the earth.  Each
+      point consists of latitude,longitude in degrees.  Points are also
+      comma-delimited, so this parameter will look like
+      `lat1,lng1,lat2,lng2,lat3,lng3,...`  Latitude values must fall in the
+      range [-90, 90] and longitude values must fall in the range [-180, 180].
+
+
+      All of the requirements and clarifications for GeoPolygon apply to
+      GeoPolygonString as well.
+    pattern: >-
+      ^(?:-?\d{1,3}(?:\.\d*)?,){5}-?\d{1,3}(?:\.\d*)?(?:(?:,-?\d{1,3}(?:\.\d*)?){2})*$
+    schema:
+      type: string
+  GetFlightDetailsResponse:
+    description: Response to remote ID provider query for details about a specific flight.
+    properties:
+      details:
+        $ref: '#/definitions/RIDFlightDetails'
+    required:
+    - details
+    type: object
+  GetFlightsResponse:
+    description: >-
+      Response to remote ID provider query for flight information in an area of
+      interest.
+    properties:
+      flights:
+        description: >-
+          A list of all flights that have been within the requested area within
+          the remote ID retention period.  This includes flights that are not
+          currently within the requested area, but were within the requested
+          area within the remote ID retention period.
+        items:
+          $ref: '#/definitions/RIDFlight'
+        type: array
+      timestamp:
+        description: >-
+          The remote ID service provider's timestamp for when this information
+          was current.  RFC 3339 format, per OpenAPI specification.
+        format: date-time
+        type: string
+    required:
+    - timestamp
+    - flights
+    type: object
+  GetIdentificationServiceAreaResponse:
+    description: >-
+      Response to DSS request for the identification service area with the given
+      id.
+    properties:
+      identification_service_area:
+        $ref: '#/definitions/IdentificationServiceArea'
+    required:
+    - identification_service_areas
+    type: object
+  GetSubscriptionResponse:
+    description: Response to DSS request for the subscription with the given id.
+    properties:
+      subscription:
+        $ref: '#/definitions/Subscription'
+    required:
+    - subscription
+    type: object
+  HorizontalAccuracy:
+    description: >-
+      This is the NACp enumeration from ADS-B, plus 1m for a more complete range
+      for UAs.
+
+
+      `HAUnknown`: Unknown horizontal accuracy
+
+
+      `HA10NMPlus`: > 10NM (18.52km)
+
+
+      `HA10NM`: < 10NM (18.52km)
+
+
+      `HA4NM`: < 4NM (7.408km)
+
+
+      `HA2NM`: < 2NM (3.704km)
+
+
+      `HA1NM`: < 1NM (1852m)
+
+
+      `HA05NM`: < 0.5NM (926m)
+
+
+      `HA03NM`: < 0.3NM (555.6m)
+
+
+      `HA01NM`: < 0.1NM (185.2m)
+
+
+      `HA005NM`: < 0.05NM (92.6m)
+
+
+      `HA30m`: < 30m
+
+
+      `HA10m`: < 10m
+
+
+      `HA3m`: < 3m
+
+
+      `HA1m`: < 1m
+    enum:
+    - HAUnknown
+    - HA10NMPlus
+    - HA10NM
+    - HA4NM
+    - HA2NM
+    - HA1NM
+    - HA05NM
+    - HA03NM
+    - HA01NM
+    - HA005NM
+    - HA30m
+    - HA10m
+    - HA3m
+    - HA1m
+    type: string
+  IdentificationServiceArea:
+    description: >-
+      An Identification Service Area (area in which remote ID services are being
+      provided).  The DSS reports only these declarations and clients must
+      exchange flight information peer-to-peer.
+    properties:
+      flights_url:
+        $ref: '#/definitions/RIDFlightsURL'
+      owner:
+        description: >-
+          Assigned by the DSS based on creating client’s ID (via access token). 
+          Used for restricting mutation and deletion operations to owner, and
+          only requiring EntitySignatures for unowned Entities.
+        example: myuss
+        type: string
+      time_end:
+        description: 'End time of service.  RFC 3339 format, per OpenAPI specification.'
+        format: date-time
+        type: string
+      time_start:
+        description: >-
+          Beginning time of service.  RFC 3339 format, per OpenAPI
+          specification.
+        format: date-time
+        type: string
+      version:
+        $ref: '#/definitions/Version'
+    required:
+    - flights_url
+    - owner
+    - time_start
+    - time_end
+    - version
+    type: object
+  IdentificationServiceAreaURL:
+    description: >-
+      The URL at which notifications regarding Identification Service Areas may
+      be delivered.  See the `/uss/identification_service_areas/{id}` path for
+      specification of this endpoint.
+    example: >-
+      https://example.com/identification_service_areas/a4c6f8c0-ad77-4d93-9cc2-ec8601383f96
+    type: string
+  LatLngPoint:
+    description: Point on the earth's surface.
+    properties:
+      lat:
+        $ref: '#/definitions/Latitude'
+      lng:
+        $ref: '#/definitions/Longitude'
+    required:
+    - lat
+    - lng
+    type: object
+  Latitude:
+    description: >-
+      Degrees of latitude north of the equator, with reference to the WGS84
+      ellipsoid.
+    example: 34.123
+    exclusiveMaximum: false
+    exclusiveMinimum: false
+    format: double
+    maximum: 90
+    minimum: -90
+    type: number
+  Longitude:
+    description: >-
+      Degrees of longitude east of the Prime Meridian, with reference to the
+      WGS84 ellipsoid.
+    example: -118.456
+    exclusiveMaximum: false
+    exclusiveMinimum: false
+    format: double
+    maximum: -180
+    minimum: 180
+    type: number
+  PutIdentificationServiceAreaNotificationParameters:
+    description: >-
+      Parameters of a message informing of new full information for an
+      Identification Service Area.  Pushed (by a client, not the DSS) directly
+      to clients with subscriptions when another client makes a change to
+      airspace within a cell with a subscription.
+    properties:
+      service_area:
+        description: >-
+          Identification Service Area that the notifying client changed or
+          created.
+      subscriptions:
+        description: Subscription(s) prompting this notification.
+        items:
+          $ref: '#/definitions/SubscriptionState'
+        type: array
+    required:
+    - service_area
+    - subscriptions
+    type: object
+  PutIdentificationServiceAreaParameters:
+    description: >-
+      Parameters for a request to create or update a reference to an
+      Identification Service Area in the DSS.
+    properties:
+      extents:
+        schema:
+          $ref: '#/definitions/Volume4D'
+        description: >-
+          The bounding spacetime extents of this Identification Service Area.
+          Start and end times must be specified.
+
+
+          These extents should not reveal any sensitive information about the
+          flight or flights within them.  This means, for instance, that extents
+          should not tightly-wrap a flight path, nor should they generally be
+          centered around the takeoff point of a single flight.
+        type: object
+      flights_url:
+        schema:
+          $ref: '#/definitions/RIDFlightsURL'
+        type: object
+    required:
+    - extents
+    - flights_url
+    type: object
+  PutIdentificationServiceAreaResponse:
+    description: >-
+      Response to a request to create or update a reference to an Identification
+      Service Area in the DSS.
+    properties:
+      service_area:
+        description: Resulting service area stored in DSS.
+      subscribers:
+        description: >-
+          DSS subscribers that this client now has the obligation to notify of
+          the Identification Service Area changes just made.  This client must
+          call PUT for each provided URL according to the
+          `/uss/identification_service_areas/{id}` path API.
+        items:
+          $ref: '#/definitions/SubscriberToNotify'
+        type: array
+      version:
+        $ref: '#/definitions/Version'
+    required:
+    - service_area
+    - subscribers
+    type: object
+  PutSubscriptionParameters:
+    description: Parameters for a request to create or update a subscription in the DSS.
+    properties:
+      callbacks:
+        $ref: '#/definitions/SubscriptionCallbacks'
+      extents:
+        description: >-
+          The spacetime extents of the volume to subscribe to.
+
+
+          This subscription will automatically be deleted after its end time if
+          it has not been refreshed by then.  If end time is not specified, the
+          value will be chosen automatically by the DSS.
+
+
+          Note that some Entities triggering notifications may lie entirely
+          outside the requested area.
+      version:
+        $ref: '#/definitions/Version'
+    required:
+    - extents
+    - callbacks
+    type: object
+  PutSubscriptionResponse:
+    description: Response for a request to create or update a subscription.
+    properties:
+      service_areas:
+        description: >-
+          Identification Service Areas in or near the subscription area at the
+          time of creation/update, if `identification_service_area_url` callback
+          was specified.
+        items:
+          $ref: '#/definitions/IdentificationServiceArea'
+        type: array
+      subscription:
+        description: Result of the operation on the subscription.
+    required:
+    - subscription
+    type: object
+  RIDAircraftPosition:
+    description: Position of an aircraft as reported for remote ID purposes.
+    properties:
+      accuracy_h:
+        description: >-
+          Horizontal error that is likely to be present in this reported
+          position.  Required when `extrapolated` field is true and always in
+          the entry for the current state.
+      accuracy_v:
+        description: >-
+          Vertical error that is likely to be present in this reported
+          position.  Required when `extrapolated` field is true and always in
+          the entry for the current state.
+      alt:
+        description: >-
+          Geodetic altitude (NOT altitude above launch, altitude above ground,
+          or EGM96): aircraft distance above the WGS84 ellipsoid as measured
+          along a line that passes through the aircraft and is normal to the
+          surface of the WGS84 ellipsoid.  This value is provided in meters and
+          must have a minimum resolution of 1 meter.
+        example: 1321.2
+        format: float
+        type: number
+      extrapolated:
+        description: >-
+          True if this position was generated primarily by computation rather
+          than primarily from a direct instrument measurement.  Assumed false if
+          not specified.
+        type: boolean
+      lat:
+        $ref: '#/definitions/Latitude'
+      lng:
+        $ref: '#/definitions/Longitude'
+      pressure_altitude:
+        description: >-
+          The uncorrected altitude (based on reference standard 29.92 inHg,
+          1013.25 mb) provides a reference for algorithms that utilize "altitude
+          deltas" between aircraft.  This value is provided in meters and must
+          have a minimum resolution of 1 meter.
+        format: float
+        type: number
+    required:
+    - lat
+    - lng
+    - alt
+    type: object
+  RIDAircraftState:
+    description: State of an aircraft for the purposes of remote ID.
+    properties:
+      group_ceiling:
+        description: Maximum altitude (meters WGS84-HAE) of Group Operation
+        format: float
+        type: number
+      group_count:
+        description: >-
+          When operating a group (or formation or swarm), number of aircraft in
+          group.
+        exclusiveMinimum: false
+        format: int32
+        minimum: 1
+        type: integer
+      group_floor:
+        description: >-
+          Minimum altitude (meters WGS84-HAE) of Group Operation.  If not
+          specified, ground level shall be assumed.
+        format: float
+        type: number
+      group_radius:
+        description: >-
+          Farthest horizontal distance from reported group location at which an
+          aircraft in the group may be located (meters).
+        exclusiveMinimum: true
+        format: float
+        minimum: 0
+        type: number
+      height:
+        $ref: '#/definitions/RIDHeight'
+      operational_status:
+        $ref: '#/definitions/RIDOperationalStatus'
+      position:
+        $ref: '#/definitions/RIDAircraftPosition'
+      speed:
+        description: Ground speed of flight in meters per second.
+        example: 1.9
+        exclusiveMinimum: false
+        format: float
+        minimum: 0
+        type: number
+      speed_accuracy:
+        description: Accuracy of horizontal ground speed.
+      timestamp:
+        description: >-
+          Time at which this state was valid.  This may be the time coming from
+          the source, such as a GPS, or the time when the system computes the
+          values using an algorithm such as an Extended Kalman Filter (EKF). 
+          Timestamp must be expressed with a minimum resolution of 1/10th of a
+          second.  RFC 3339 format, per OpenAPI specification.
+        format: date-time
+        type: string
+      timestamp_accuracy:
+        description: >-
+          Declaration of timestamp accuracy, which is the largest difference
+          between Timestamp and true time of applicability for any of the
+          following fields: Latitude, Longitude, Geodetic Altitude, Pressure
+          Altitude of Position, Height. to determine time of applicability of
+          the location data provided.  Expressed in seconds, precise to 1/10ths
+          of seconds. The accuracy reflects the 95% uncertainty bound value for
+          the timestamp.
+        exclusiveMinimum: false
+        format: float
+        minimum: 0
+        type: number
+      track:
+        description: >-
+          Direction of flight expressed as a "True North-based" ground track
+          angle.  This value is provided in degrees East of North with a minimum
+          resolution of 1 degree.
+        exclusiveMaximum: true
+        exclusiveMinimum: false
+        format: float
+        maximum: 360
+        minimum: 0
+        type: number
+      vertical_speed:
+        description: 'Speed up (vertically) WGS84-HAE, m/s.'
+        example: 0.2
+        format: float
+        type: number
+    required:
+    - timestamp
+    - timestamp_accuracy
+    - accuracy_h
+    - accuracy_v
+    - speed
+    - vertical_speed
+    - track
+    - speed_accuracy
+    - position
+    type: object
+  RIDAircraftType:
+    description: >-
+      Type of aircraft for the purposes of remote ID.
+
+
+      `VTOL` is a fixed wing aircraft that can take off vertically.  `Rotocraft`
+      includes multirotor.
+    enum:
+    - NotDeclared
+    - Aeroplane
+    - Rotorcraft
+    - Gyroplane
+    - VTOL
+    - Ornithopter
+    - Glider
+    - Kite
+    - FreeBalloon
+    - CaptiveBalloon
+    - Airship
+    - FreeFallOrParachute
+    - Rocket
+    - GroundObstacle
+    - Other
+    type: string
+  RIDAuthData:
+    description: Additional authentication data.
+    properties:
+      data:
+        description: Authentication data in form specified by `format`.
+        type: string
+      format:
+        description: Format of additional authentication data.
+        type: string
+    required:
+    - format
+    - data
+    type: object
+  RIDFlight:
+    description: Description of a remote ID flight.
+    properties:
+      aircraft_type:
+        description: Generic type of aircraft.
+      current_state:
+        description: >-
+          The most up-to-date state of the aircraft.  Required unless `volumes`
+          is specified.
+      id:
+        $ref: '#/definitions/RIDFlightID'
+      recent_positions:
+        description: >-
+          A short collection of recent aircraft movement, specified only when
+          `include_recent_positions` is true.  If `volumes` is not specified and
+          `include_recent_positions` is true, then this field is required.
+
+
+          Under no circumstances should more than [NetUasInAreaWindow] seconds
+          of positions be included.  A full [NetUasInAreaWindow] seconds of most
+          recent positions (excluding current position) is required, or as many
+          positions are available if there is less than [NetUasInAreaWindow]
+          seconds of positions.  These positions do not need to include the
+          current position.  The entries in this list should be in descending
+          order according to time.
+        items:
+          $ref: '#/definitions/RIDRecentAircraftPosition'
+        type: array
+      simulated:
+        description: >-
+          If specified as true, this flight is not a physical aircraft; it is
+          just a simulation to test the system.
+        type: boolean
+      volumes:
+        description: >-
+          The set of spacetime volumes the aircraft is within.  Required if
+          `current_state` is not specified.  The fields `time_start` and
+          `time_end` are required if `current_state` is not specified.
+        items:
+          $ref: '#/definitions/Volume4D'
+        minItems: 1
+        type: array
+    required:
+    - id
+    - aircraft_type
+    type: object
+  RIDFlightDetails:
+    description: >-
+      Details about a flight reported by a remote ID service provider.  At least
+      one of the registration or serial fields must be filled if required by
+      CAA.
+    properties:
+      auth_data:
+        $ref: '#/definitions/RIDAuthData'
+      id:
+        description: 'ID for this flight, matching argument in request.'
+        example: a3423b-213401-0023
+        type: string
+      operation_description:
+        description: >-
+          Free-text field that enables the operator to describe the purpose of a
+          flight, if so desired.
+        example: >-
+          SafeFlightDrone company doing survey with DJI Inspire 2. See my
+          privacy policy www.example.com/privacy.
+        type: string
+      operator_id:
+        description: 'CAA-issued registration/license ID for the remote pilot or operator. '
+        type: string
+      operator_location:
+        description: Location of party controlling the aircraft.
+      registration_number:
+        description: >-
+          If a CAA provides a method of registering UAS, this number is provided
+          by the CAA or its authorized representative.  Required when required
+          by law in a region.
+        example: FA12345897
+        type: string
+      serial_number:
+        description: >-
+          Can be specified when no registration ID exists and required by law in
+          a region. This is expressed in the ANSI/CTA-2063 Physical Serial
+          Number format.
+        example: INTCJ123-4567-890
+        type: string
+    required:
+    - id
+    type: object
+  RIDFlightID:
+    description: >-
+      ID, unique to a remote ID service provider, which identifies a particular
+      flight for which the remote ID service provider is providing remote ID
+      services.
+    example: uss1.JA6kHYCcByQ-6AfU
+    maxLength: 255
+    minLength: 1
+    pattern: '^[^\0\t\r\n#%\/:?@[\\\]]+$'
+    type: string
+  RIDFlightsURL:
+    description: >-
+      The URL at which the remote ID flights and their details may be
+      retrieved.  See `/flights` and `/flights/{id}/details` paths for
+      specification of this endpoint.
+
+      This URL is the base flights resource.  If this URL is specified as
+      https://example.com/flights then the flight details for a particular {id}
+      may be obtained at the URL https://example.com/flights/{id}/details.  This
+      URL may not have a trailing / character.
+    example: 'https://example.com/flights'
+    pattern: '[^\/]$'
+    type: string
+  RIDHeight:
+    description: A relative altitude for the purposes of remote ID.
+    properties:
+      distance:
+        description: >-
+          Distance above reference datum.  This value is provided in meters and
+          must have a minimum resolution of 1 meter.
+        format: float
+        type: number
+      reference:
+        description: The reference datum above which the height is reported.
+        enum:
+        - TakeoffLocation
+        - GroundLevel
+        type: string
+    required:
+    - distance
+    - reference
+    type: object
+  RIDOperationalStatus:
+    description: Indicates operational status of associated aircraft.
+    enum:
+    - Undeclared
+    - Ground
+    - Airborne
+    type: string
+  RIDRecentAircraftPosition:
+    description: ''
+    properties:
+      position:
+        $ref: '#/definitions/RIDAircraftPosition'
+      time:
+        description: >-
+          Time at which this position applied.  RFC 3339 format, per OpenAPI
+          specification.
+        format: date-time
+        type: string
+    required:
+    - time
+    - position
+    type: object
+  SearchIdentificationServiceAreasResponse:
+    description: >-
+      Response to DSS query for Identification Service Areas in an area of
+      interest.
+    properties:
+      service_areas:
+        description: Identification Service Areas in the area of interest.
+        items:
+          $ref: '#/definitions/IdentificationServiceArea'
+        type: array
+    required:
+    - service_areas
+    type: object
+  SearchSubscriptionsResponse:
+    description: Response to DSS query for subscriptions in a particular area.
+    properties:
+      subscriptions:
+        description: Subscriptions that overlap the specified area.
+        items:
+          $ref: '#/definitions/Subscription'
+        type: array
+    required:
+    - subscriptions
+    type: object
+  SpeedAccuracy:
+    description: |-
+      This is the same enumeration scale and values from ADS-B NACv.
+
+      `SAUnknown`: Unknown speed accuracy
+
+      `SA10mpsPlus`: > 10 m/s
+
+      `SA10mps`: < 10 m/s
+
+      `SA3mps`: < 3 m/s
+
+      `SA1mps`: < 1 m/s
+
+      `SA03mps`: < 0.3 m/s
+    enum:
+    - SAUnknown
+    - SA10mpsPlus
+    - SA10mps
+    - SA3mps
+    - SA1mps
+    - SA03mps
+    type: string
+  SubscriberToNotify:
+    description: >-
+      Subscriber to notify of a creation/change/deletion of a change in the
+      airspace.  This is provided by the DSS to a client changing the airspace,
+      and it is the responsibility of the client changing the airspace (they
+      will receive a set of these notification requests) to send a notification
+      to each specified `url`.
+    properties:
+      subscriptions:
+        description: Subscription(s) prompting this notification.
+        items:
+          $ref: '#/definitions/SubscriptionState'
+        type: array
+      url:
+        description: >-
+          The endpoint that the client mutating the airspace should provide the
+          update to.  API depends on the DSS action taken that triggered this
+          notification request.
+    required:
+    - subscriptions
+    - url
+    type: object
+  Subscription:
+    description: >-
+      Specification of a geographic area that a client is interested in on an
+      ongoing basis (e.g., “planning area”).  Internal to the DSS.
+    properties:
+      callbacks:
+        $ref: '#/definitions/SubscriptionCallbacks'
+      id:
+        description: Unique identifier for this subscription.
+      notification_index:
+        $ref: '#/definitions/SubscriptionNotificationIndex'
+      owner:
+        description: >-
+          Assigned by the DSS based on creating client’s ID (via access token). 
+          Used for restricting mutation and deletion operations to owner.
+        example: myuss
+        type: string
+      time_end:
+        description: >-
+          If set, this subscription will be automatically removed after this
+          time.  RFC 3339 format, per OpenAPI specification.
+        format: date-time
+        type: string
+      time_start:
+        description: >-
+          If set, this Subscription will not generate any notifications before
+          this time.  RFC 3339 format, per OpenAPI specification.
+        format: date-time
+        type: string
+      version:
+        $ref: '#/definitions/Version'
+    required:
+    - id
+    - url
+    - notification_index
+    - owner
+    type: object
+  SubscriptionCallbacks:
+    description: >-
+      Endpoints that should be called when an applicable event occurs.  At least
+      one field must be specified.
+    properties:
+      identification_service_area_url:
+        description: >-
+          If specified, other clients will be instructed by the DSS to call this
+          endpoint when an Identification Service Area relevant to this
+          Subscription is created, modified, or deleted.  Must implement PUT and
+          DELETE according to the `/uss/identification_service_areas/{id}` path
+          API.
+    type: object
+  SubscriptionNotificationIndex:
+    description: >-
+      Tracks the notifications sent for a subscription so the subscriber can
+      detect missed notifications more easily.
+    format: int32
+    type: integer
+  SubscriptionState:
+    description: State of AreaSubscription which is causing a notification to be sent.
+    properties:
+      notification_index:
+        $ref: '#/definitions/SubscriptionNotificationIndex'
+      subscription_id:
+        $ref: '#/definitions/SubscriptionUUID'
+    required:
+    - subscription
+    type: object
+  SubscriptionUUID:
+    description: >-
+      Universally-unique identifier for a Subscription communicated through the
+      DSS.  Formatted as UUIDv4.
+  URL:
+    description: Valid http or https URL.
+    pattern: >-
+      ^https?:\/\/(?:\[[0-9a-fA-F]{0,4}(?::[0-9a-fA-F]{0,4}){2,7}\]|[^\0\t\r\n
+      #%\/:?@[\\\]]{1,63}(?:\.[^\0\t\r\n
+      #%\/:?@[\\\]]{1,63}){1,126})(?::\d{1,5})?\/?
+    type: string
+  UUIDv4:
+    description: UUID v4.
+    example: 03e5572a-f733-49af-bc14-8a18bd53ee39
+    maxLength: 36
+    minLength: 36
+    pattern: >-
+      ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+    type: string
+  Version:
+    description: >-
+      A version string used to reference an object at a particular point in
+      time. Any updates to an object must contain the corresponding version to
+      maintain idempotent updates.
+    type: string
+  VerticalAccuracy:
+    description: |-
+      This is the GVA enumeration from ADS-B, plus some finer values for UAs.
+
+      `VAUnknown`: Unknown vertical accuracy
+
+      `VA150mPlus`: > 150m
+
+      `VA150m`: < 150m
+
+      `VA45m`: < 45m
+
+      `VA25m`: < 25m
+
+      `VA10m`: < 10m
+
+      `VA3m`: < 3m
+
+      `VA1m`: < 1m
+    enum:
+    - VAUnknown
+    - VA150mPlus
+    - VA150m
+    - VA45m
+    - VA25m
+    - VA10m
+    - VA3m
+    - VA1m
+    type: string
+  Volume3D:
+    description: >-
+      A three-dimensional geographic volume consisting of a vertically-extruded
+      polygon.
+    properties:
+      altitude_hi:
+        description: Maximum bounding altitude of this volume.
+      altitude_lo:
+        description: Minimum bounding altitude of this volume.
+      footprint:
+        description: Projection of this volume onto the earth's surface.
+    required:
+    - footprint
+    type: object
+  Volume4D:
+    description: Contiguous block of geographic spacetime.
+    properties:
+      spatial_volume:
+        description: Constant spatial extent of this volume.
+      time_end:
+        description: 'End time of this volume.  RFC 3339 format, per OpenAPI specification.'
+        format: date-time
+        type: string
+      time_start:
+        description: >-
+          Beginning time of this volume.  RFC 3339 format, per OpenAPI
+          specification.
+        format: date-time
+        type: string
+    required:
+    - spatial_volume
+    type: object
+info:
+  description: >-
+    Interface to Discovery and Synchronization Service and service providers
+    used by participating clients to discover and inform other service
+    providers.
+
+
+    Unless otherwise specified, fields specified in a message but not declared
+    in the API shall be ignored.
+  title: Discovery and Synchronization Service
+  version: 0.0.2
+paths:
+  /v1/dss/identification_service_areas:
+    description: ''
+    get:
+      description: >-
+        Retrieve all Identification Service Areas in the DAR for a given area
+        during the given time.  Note that some Identification Service Areas
+        returned may lie entirely outside the requested area.
+      operationId: searchIdentificationServiceAreas
+      parameters:
+      - description: >-
+          The area in which to search for Identification Service Areas.  Some
+          Identification Service Areas near this area but wholly outside it
+          may also be returned.
+        in: query
+        name: area
+        schema:
+          type: string
+          pattern: >-
+            ^(?:-?\d{1,3}(?:\.\d*)?,){5}-?\d{1,3}(?:\.\d*)?(?:(?:,-?\d{1,3}(?:\.\d*)?){2})*$
+        required: true
+      - description: >-
+          If specified, indicates non-interest in any Identification Service
+          Areas that end before this time.  RFC 3339 format, per OpenAPI
+          specification.
+        schema:
+          format: date-time
+          type: string
+        in: query
+        name: earliest_time
+        required: true
+      - description: >-
+          If specified, indicates non-interest in any Identification Service
+          Areas that start after this time.  RFC 3339 format, per OpenAPI
+          specification.
+        in: query
+        name: latest_time
+        required: true
+        schema:
+          format: date-time
+          type: string
+      produces:
+      - application/json
+      responses:
+        '200':
+          description: Identification Service Areas were successfully retrieved.
+          schema:
+            $ref: '#/definitions/SearchIdentificationServiceAreasResponse'
+        '400':
+          description: One or more input parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '413':
+          description: The requested area was too large.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.read.identification_service_areas
+      summary: /dss/identification_service_areas
+      tags:
+      - dss
+    summary: Set of Identification Service Areas in the DSS.
+  '/v1/dss/identification_service_areas/{id}':
+    delete:
+      description: >-
+        Delete an Identification Service Area.  USSs should not delete
+        Identification Service Areas before the end of the last managed flight
+        plus the retention period.
+      operationId: deleteIdentificationServiceArea
+      parameters:
+      - description: Version of the Service Area to delete.
+        in: query
+        name: version
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        '200':
+          description: Identification Service Area was successfully deleted from DSS.
+          schema:
+            $ref: '#/definitions/DeleteIdentificationServiceAreaResponse'
+        '400':
+          description: One or more input parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            * The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+
+            * The Identification Service Area does not belong to the client
+            requesting deletion.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '404':
+          description: Entity could not be deleted because it could not be found.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '409':
+          description: >-
+            Despite repeated attempts, the DSS was unable to update the DAR
+            because of other simultaneous changes.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.write.identification_service_areas
+      summary: '/dss/identification_service_areas/{id}'
+      tags:
+      - dss
+    get:
+      description: >-
+        Retrieve full information of an Identification Service Area owned by the
+        client.
+      operationId: getIdentificationServiceArea
+      parameters: []
+      produces:
+      - application/json
+      responses:
+        '200':
+          description: >-
+            Full information of the Identification Service Area was retrieved
+            successfully.
+          schema:
+            $ref: '#/definitions/GetIdentificationServiceAreaResponse'
+        '400':
+          description: One or more input parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '404':
+          description: The requested Entity could not be found.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.read.position_reporting_entities
+      summary: '/dss/identification/{id}'
+      tags:
+      - dss
+    parameters:
+    - description: EntityUUID of the Identification Service Area.
+      in: path
+      name: id
+      required: true
+      schema:
+        description: UUID v4.
+        maxLength: 36
+        minLength: 36
+        pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+        type: string
+        example: 03e5572a-f733-49af-bc14-8a18bd53ee39
+    summary: An Identification Service Area in the DSS.
+  /v1/dss/subscriptions:
+    get:
+      description: >-
+        Retrieve subscriptions intersecting an area of interest.  Subscription
+        notifications are only triggered by (and contain full information of)
+        changes to, creation of, or deletion of, Entities referenced by or
+        stored in the DSS; they do not involve any data transfer (such as remote
+        ID telemetry updates) apart from Entity information.
+
+
+        Only Subscriptions belonging to the caller are returned.  This endpoint
+        would be used if a USS lost track of Subscriptions they had created
+        and/or wanted to resolve an error indicating that they had too many
+        existing Subscriptions in an area.
+      operationId: searchSubscriptions
+      parameters:
+      - description: >-
+          The area in which to search for Subscriptions.  Some Subscriptions
+          near this area but wholly outside it may also be returned.
+        in: query
+        name: area
+        required: true
+        schema:
+          type: string
+          pattern: >-
+            ^(?:-?\d{1,3}(?:\.\d*)?,){5}-?\d{1,3}(?:\.\d*)?(?:(?:,-?\d{1,3}(?:\.\d*)?){2})*$
+      produces:
+      - application/json
+      responses:
+        '200':
+          description: Subscriptions were retrieved successfully.
+          schema:
+            $ref: '#/definitions/SearchSubscriptionsResponse'
+        '400':
+          description: One or more input parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '413':
+          description: The requested area was too large.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.read.identification_service_areas
+      summary: /dss/subscriptions
+      tags:
+      - dss
+    summary: Subscriptions for airspace updates to a volume of interest.
+  '/v1/dss/subscriptions/{id}':
+    delete:
+      description: Delete a subscription.
+      operationId: deleteSubscription
+      parameters:
+      - description: Version of the Service Area to delete.
+        in: query
+        name: version
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        '200':
+          description: Subscription was deleted successfully.
+          schema:
+            $ref: '#/definitions/DeleteSubscriptionResponse'
+        '400':
+          description: One or more input parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            * The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+
+            * The Entity does not belong to the client requesting deletion.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '404':
+          description: Subscription could not be deleted because it could not be found.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '409':
+          description: >-
+            Despite repeated attempts, the DSS was unable to update the DAR
+            because of other simultaneous changes.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.read.position_reporting_entities
+      summary: '/dss/subscriptions/{id}'
+      tags:
+      - dss
+    get:
+      description: Verify the existence/valdity and state of a particular subscription.
+      operationId: getSubscription
+      parameters: []
+      produces:
+      - application/json
+      responses:
+        '200':
+          description: Subscription information was retrieved successfully.
+          schema:
+            $ref: '#/definitions/GetSubscriptionResponse'
+        '400':
+          description: One or more input parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '404':
+          description: A Subscription with the specified ID was not found.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.read.position_reporting_entities
+        - dss.write.position_reporting_entities
+      summary: '/dss/subscriptions/{id}'
+      tags:
+      - dss
+    parameters:
+    - description: SubscriptionUUID of the subscription of interest.
+      in: path
+      name: id
+      required: true
+      schema:
+        description: UUID v4.
+        maxLength: 36
+        minLength: 36
+        pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+        type: string
+        example: 03e5572a-f733-49af-bc14-8a18bd53ee39
+    summary: Subscription for airspace updates to a volume of interest.
+  /v1/uss/flights:
+    description: >-
+      This endpoint may be polled by remote ID display providers to display
+      basic aircraft activity near a user in real time.
+    get:
+      description: >-
+        Retrieve basic flight information from a remote ID service provider to
+        meet remote ID requirements.  This endpoint will be polled by remote ID
+        display providers to display basic aircraft activity near a user in real
+        time.  All flights that have any recent positions (past
+        [NetUasInAreaWindow] seconds) inside the requested view must be
+        returned.
+      operationId: searchFlights
+      parameters: []
+      produces:
+      - application/json
+      responses:
+        '200':
+          description: Flight information was successfully retrieved.
+          schema:
+            $ref: '#/definitions/GetFlightsResponse'
+        '400':
+          description: One or more input parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '404':
+          description: >-
+            The requested view is entirely outside any remote ID service
+            provision areas (PositionReporting Entity volumes) this provider
+            has.  A display provider receiving this response should discontinue
+            polling for this endpoint for the view port requested until
+            otherwise directed by DSS interactions.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '413':
+          description: The requested view rectangle was too large.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.read.identification_service_areas
+      summary: /uss/flights
+      tags:
+      - p2p_rid
+    parameters:
+    - description: >-
+        The area of this view: lat1,lng1,lat2,lng2.  Size may not exceed a
+        diagonal length specified in the standard.  The view is the smallest
+        box bounded by the provided corner points.
+      in: query
+      name: view
+      required: true
+      schema:
+        pattern: >-
+          ^-?\d{1,3}(?:\.\d*)?,-?\d{1,3}(?:\.\d*)?,-?\d{1,3}(?:\.\d*)?,-?\d{1,3}(?:\.\d*)?$
+        type: string
+    - description: >-
+        If specified as true, include recent positions.  Otherwise, do not
+        include recent positions.
+
+
+        A display provider's first poll of this endpoint for a particular view
+        will usually request recent positions while follow-up polls for that
+        same view will usually not need to request recent positions.
+      in: query
+      name: include_recent_positions
+      schema:
+        type: boolean
+    summary: Basic operation details to meet remote ID requirements.
+  '/v1/uss/flights/{id}/details':
+    get:
+      description: >-
+        Retrieve details of a flight from a remote ID service provider to meet
+        remote ID requirements.
+      operationId: getFlightDetails
+      parameters: []
+      produces:
+      - application/json
+      responses:
+        '200':
+          description: Flight details were successfully retrieved.
+          schema:
+            $ref: '#/definitions/GetFlightDetailsResponse'
+        '400':
+          description: One or more input parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '404':
+          description: The requested flight could not be found.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.read.identification_service_areas
+      summary: '/uss/flights/{id}/details'
+      tags:
+      - p2p_rid
+    parameters:
+    - description: >-
+        Remote ID flight ID for this flight; may be obtained in general
+        /flights query.
+      in: path
+      maxLength: 255
+      minLength: 1
+      name: id
+      required: true
+      schema:
+        pattern: '^[^\0\t\r\n#%\/:?@[\\\]]+$'
+        type: string
+    summary: A remote ID flight reported by a remote ID service provider.
+  '/v1/uss/identification_service_areas/{id}':
+    delete:
+      description: >-
+        Hosted by a remote ID display provider using Subscriptions: publish a
+        notification about the deletion of an Identification Service Area to the
+        host of this endpoint (usually because of instructions from the DSS
+        triggered by a subscription).
+      operationId: publishIdentificationServiceAreaDeletion
+      parameters: []
+      produces:
+      - application/json
+      responses:
+        '204':
+          description: >-
+            Notification of Identification Service Area deletion was received
+            successfully, even if the host USS was previously unaware of the
+            specified Identification Service Area.
+        '400':
+          description: One or more parameters were missing or invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: >-
+            Bearer access token was not provided in Authorization header, token
+            could not be decoded, or token was invalid.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: >-
+            * The access token was decoded successfully but did not include a
+            scope appropriate to this endpoint.
+
+            * The client identified in the access token is not the owner of this
+            Entity according to the receiving client's records.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - AuthFromAuthorizationAuthority:
+        - dss.write.identification_service_areas
+      summary: '/uss/identification_service_areas/{id}'
+      tags:
+      - p2p_rid
+    parameters:
+    - description: EntityUUID of the Identification Service Area.
+      in: path
+      name: id
+      required: true
+      schema:
+        description: UUID v4.
+        maxLength: 36
+        minLength: 36
+        pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+        type: string
+        example: 03e5572a-f733-49af-bc14-8a18bd53ee39
+    summary: Notifications of change to Identification Service Areas.
+security:
+- AuthFromAuthorizationAuthority:
+  - dss.read.position_reporting_entities
+  - dss.write.position_reporting_entities
+  - dss.read.airspace_awareness
+  - dss.write.airspace_awareness
+  - dss.write.operations
+  - dss.write.constraints
+securityDefinitions:
+  AuthFromAuthorizationAuthority:
+    description: >-
+      Authorization from, or on behalf of, an authorization authority.  This
+      authority shall issue access tokens that are JSON Web Tokens as defined in
+      RFC 7519, using the `RS256` algorithm for the signature, and publish to
+      all providers the public key for verifying that signature.
+
+
+      The following fields shall be included in the JWT claim for access tokens
+      issued by this authority:
+
+      * `iss`, with the URL at which the token generation request was received.
+
+      * `exp`, with a time no further than 1 hour in the future.
+
+      * `sub`, with unique ID of the client requesting the access token.
+
+      * `scope`, with an array of strings indicating the scopes granted.
+
+
+      Multiple scopes for a single token shall be granted if requested.  The
+      tokens granted by this authority shall protect against reuse of received
+      tokens to impersonate the sender to other recipients (via use of the `aud`
+      claim or other means).
+
+
+      Clients shall provide these access tokens in an `Authorization` header in
+      the form `Bearer <token>` in accordance with RFC 6750.
+    flow: application
+    scopes:
+      dss.read.identification_service_areas: >-
+        Client may query, read, or create subscriptions for Identification
+        Service Areas for remote ID.  A remote ID display provider shall be
+        granted this scope upon request.
+      dss.write.identification_service_areas: >-
+        Client may create, edit, and delete Identification Service Areas for
+        remote ID.  A remote ID service provider shall be granted this scope
+        upon request.
+    tokenUrl: 'https://example.com/oauth/token'
+    type: oauth2
+swagger: '2.0'
+tags:
+- description: Endpoints exposed by the DSS server.
+  name: dss
+- description: >-
+    Endpoints exposed by remote ID service providers for peer-peer
+    communication.
+  name: p2p_rid
+x-components: {}
+

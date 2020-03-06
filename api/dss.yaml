@@ -14,6 +14,7 @@ paths:
     get:
       tags:
       - dss
+      operationId: searchIdentificationServiceAreas
       parameters:
       - name: area
         description: The area in which to search for Identification Service Areas.  Some
@@ -84,6 +85,7 @@ paths:
     get:
       tags:
       - dss
+      operationId: getIdentificationServiceArea
       responses:
         200:
           content:
@@ -132,6 +134,7 @@ paths:
         required: true
       tags:
       - dss
+      operationId: updateIdentificationServiceArea
       responses:
         200:
           content:
@@ -188,6 +191,7 @@ paths:
     delete:
       tags:
       - dss
+      operationId: deleteIdentificationServiceArea
       parameters:
       - name: version
         description: Version of the Service Area to delete.
@@ -257,6 +261,7 @@ paths:
     get:
       tags:
       - p2p_rid
+      operationId: searchFlights
       responses:
         200:
           content:
@@ -333,6 +338,7 @@ paths:
     get:
       tags:
       - p2p_rid
+      operationId: getFlightDetails
       responses:
         200:
           content:
@@ -391,6 +397,7 @@ paths:
         required: true
       tags:
       - p2p_rid
+      operationId: publishIdentificationServiceAreaInformation
       responses:
         204:
           description: Full information for Identification Service Area was updated
@@ -436,6 +443,7 @@ paths:
     delete:
       tags:
       - p2p_rid
+      operationId: publishIdentificationServiceAreaDeletion
       responses:
         204:
           description: Notification of Identification Service Area deletion was received
@@ -482,6 +490,7 @@ paths:
     get:
       tags:
       - dss
+      operationId: searchSubscriptions
       parameters:
       - name: area
         description: The area in which to search for Subscriptions.  Some Subscriptions
@@ -536,6 +545,7 @@ paths:
     get:
       tags:
       - dss
+      operationId: getSubscription
       responses:
         200:
           content:
@@ -584,6 +594,7 @@ paths:
         required: true
       tags:
       - dss
+      operationId: updateSubscription
       responses:
         200:
           content:
@@ -648,13 +659,14 @@ paths:
     delete:
       tags:
       - dss
+      operationId: deleteSubscription
       parameters:
       - name: version
         description: Version of the Service Area to delete.
         schema:
           $ref: '#/components/schemas/Version'
         in: query
-        required: true  
+        required: true
       responses:
         200:
           content:
