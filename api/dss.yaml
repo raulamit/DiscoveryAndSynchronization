@@ -580,7 +580,7 @@ components:
       description: |-
         The base URL of a USS implementation of the parts of the USS-USS API necessary for
         receiving the notifications requested by this Subscription.
-      : '#/components/schemas/UssBaseURL'
+      $ref: '#/components/schemas/UssBaseURL'
 
     PutSubscriptionResponse:
       description: |-
@@ -720,7 +720,7 @@ components:
         The base URL of a USS implementation that implements the parts of the USS-USS API necessary for
         providing the details of this Operation, and telemetry during non-conformance or contingency,
         if applicable.
-      : '#/components/schemas/UssBaseURL'
+      $ref: '#/components/schemas/UssBaseURL'
 
     PutOperationReferenceParameters:
       description: |-
@@ -903,7 +903,7 @@ components:
       description: |-
         The base URL of a USS implementation that implements the parts of the USS-USS API necessary for
         providing the details of this Constraint.
-      : '#/components/schemas/UssBaseURL'
+      $ref: '#/components/schemas/UssBaseURL'
 
     PutConstraintReferenceParameters:
       description: Parameters for a request to create/update a ConstraintReference in the
