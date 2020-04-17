@@ -1,50 +1,1337 @@
 ---
 openapi: 3.0.2
 info:
-  title: Discovery and Synchronization Service
-  version: 0.0.0
+  title: UTM API (USS->DSS and USS->USS)
+  version: 0.3.1
   description: |-
-    Interface to Discovery and Synchronization Service and service providers used by participating clients to discover and inform other service providers.
+    Interface definitions for 'Discovery and Synchronization Service' (DSS) and 'UAS Service Supplier (USS).
 
-    Unless otherwise specified, fields specified in a message but not declared in the API shall be ignored.
+    DSS functionality includes identification of peer UTM USS instances (managing flight operations and constraints).
+    USS functionality includes sharing details of flight operations and constraints.
+
+    Note: Unless otherwise specified, fields specified in a message but not declared in the API shall be ignored.
+
+security:
+- Authority:
+  - utm.strategic_coordination
+  - utm.constraint_management
+  - utm.constraint_consumption
+
+tags:
+- name: "Operation references"
+  description: |-
+    Endpoints exposed by the DSS for interaction with references to Operations.
+- name: "Operation details"
+  description: |-
+    Endpoints exposed by USSs for interaction with details of Operations.
+- name: "Constraint references"
+  description: |-
+    Endpoints exposed by the DSS for interaction with references to Constraints.
+- name: "Constraint details"
+  description: |-
+    Endpoints exposed by USSs for interaction with details of Constraints.
+- name: "Subscriptions"
+  description: |-
+    Endpoints exposed by the DSS for interaction with Subscription entities.
+- name: "Reports"
+  description: |-
+    Endpoints exposed by the DSS for reporting peer DSS issues.
+- name: dss
+  description: Endpoints exposed by the DSS server.
+- name: p2p_utm
+  description: Endpoints exposed by UTM USSs for peer-peer communication.
+
+components:
+  securitySchemes:
+    Authority:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://token_vendor.com/oauth/token
+          scopes:
+            utm.strategic_coordination: |-
+              Client may perform planning, strategic conflict detection, and conformance monitoring activities, including reading information about Constraints.
+            utm.constraint_management: |-
+              Client may manage (create, edit, and delete) Constraints they own.
+            utm.constraint_consumption: |-
+              Client may read Constraints from the DSS (references) and partner USSs (details).
+      description: |-
+        Authorization from, or on behalf of, an authorization authority.  This authority shall issue access tokens that are JSON Web Tokens as defined in RFC 7519, using the `RS256` algorithm for the signature, publish to all providers the public key for verifying that signature, and implement standard OAuth server discovery mechanisms as described in RFC 8414.
+
+        The following fields shall be included in the JWT claim for access tokens issued by this authority:
+            * `iss`, with the URL at which the token generation request was received.
+            * `exp`, with a time no further than 1 hour in the future.
+            * `sub`, with unique ID of the client requesting the access token.
+            * `scope`, with an array of strings indicating the scopes granted.
+            * `jti`, according to RFC 7519.
+
+        Only one scope shall be granted for a token.  The tokens granted by this authority shall protect against reuse of received tokens to impersonate the sender to other recipients (via use of the `aud` claim or other means).
+
+        Clients shall provide these access tokens in an `Authorization` header in the form `Bearer <token>` in accordance with RFC 6750.
+
+
+  schemas:
+    UUIDv4:
+      description: |-
+        Universally-unique identifier (version 4).
+      maxLength: 36
+      minLength: 36
+      type: string
+      format: uuid
+      pattern: >-
+        '^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-4[0-9a-fA-F]{3}\\-[8-b][0-9a-fA-F]{3}\\-[0-9a-fA-F]{12}$'
+      example: '03e5572a-f733-49af-bc14-8a18bd53ee39'
+
+    EntityUUID:
+      description: |-
+        Universally-unique identifier for an Entity communicated through
+        the DSS.  Formatted as UUIDv4.
+      $ref: '#/components/schemas/UUIDv4'
+      example: '2f8343be-6482-4d1b-a474-16847e01af1e'
+
+    EntityOVN:
+      title: EntityOVN
+      description: |-
+        A token associated with a particular UTM Entity+version created
+        by the DSS upon creation or modification of an Entity reference and provided
+        to the client creating or modifying the Entity reference.  The EntityOVN
+        is stored privately by the DSS and then compared against entries in a Key
+        provided to mutate the airspace.  The EntityOVN is also provided by
+        the client whenever that client transmits the full information of the Entity
+        (either via GET, or via a subscription notification).
+      type: string
+      minLength: 16
+      maxLength: 128
+      example: '9d158f59-80b7-4c11-9c0c-8a2b4d936b2d'
+
+    SubscriptionUUID:
+      description: |-
+        Universally-unique identifier for a Subscription communicated through
+        the DSS.  Formatted as UUIDv4.
+      $ref: '#/components/schemas/UUIDv4'
+      example: '78ea3fe8-71c2-4f5c-9b44-9c02f5563c6f'
+
+    Key:
+      description: |
+        Proof that a client has obtained the latest airspace content, used to ensure that write operations to the DSS occur only when the latest content is known (i.e. has been read). The client is required to pass a current Key constructed from information obtained with previous read operations and subsequent requests for full information, and optionally, subscription updates for deconflicted write operations to the DSS.  The contents of this data structure are generated by the client.
+      type: array
+      items:
+        $ref: '#/components/schemas/EntityOVN'
+      default: []
+
+    Time:
+      required:
+      - value
+      - format
+      type: object
+      properties:
+        value:
+          type: string
+          description: RFC3339-formatted time/date string.  The time zone must be 'Z'.
+          format: date-time
+          example: '1985-04-12T23:20:50.52Z'
+        format:
+          type: string
+          enum:
+          - RFC3339
+
+    CircleProperties:
+      required:
+      - radius
+      type: object
+      properties:
+        radius:
+          $ref: '#/components/schemas/Radius'
+
+    Radius:
+      required:
+      - value
+      - units
+      type: object
+      properties:
+        value:
+          format: float
+          description: Distance from the centerpoint of a circular area, along the WGS84 ellipsoid.
+          type: number
+          example: 300.183
+        units:
+          type: string
+          description: FIXM-compatible units.  Only meters ("M") are acceptable for UTM.
+          enum:
+          - M
+
+    Altitude:
+      type: object
+      required:
+      - value
+      - reference
+      - units
+      properties:
+        value:
+          description: |-
+            The numeric value of the altitude. Note that min and max values are
+            added as a sanity check. As use cases evolve and more options are
+            made available in terms of units of measure or reference systems,
+            these bounds should be re-evaluated.
+          type: number
+          format: double
+          minimum: -8000
+          exclusiveMinimum: false
+          maximum: 100000
+          exclusiveMaximum: false
+        reference:
+          description: |-
+            A code indicating the reference for a vertical distance. See AIXM 5.1
+            and FIXM 4.2.0. Currently, UTM only allows WGS84 with no immediate
+            plans to allow other options. FIXM and AIXM allow for 'SFC' which is
+            equivalent to AGL.
+          type: string
+          enum:
+          - W84
+        units:
+          description: |-
+            The reference quantities used to express the value of altitude. See
+            FIXM 4.2. Currently, UTM only allows meters with no immediate plans
+            to allow other options.
+          type: string
+          enum:
+          - M
+
+    Latitude:
+      description: Degrees of latitude north of the equator, with reference to the WGS84 ellipsoid.
+      maximum: 90
+      exclusiveMaximum: false
+      minimum: -90
+      exclusiveMinimum: false
+      type: number
+      format: double
+      example: 34.123
+
+    Longitude:
+      description: Degrees of longitude east of the Prime Meridian, with reference to the WGS84 ellipsoid.
+      minimum: -180
+      exclusiveMaximum: false
+      maximum: 180
+      exclusiveMinimum: false
+      type: number
+      format: double
+      example: -118.456
+
+    LongitudeOrLatitude:
+      description: |-
+        Longitude (degrees east of the Prime Meridian or degrees, with reference to the WGS84 ellipsoid) or Latitude
+        (degrees north of the equator, with reference to the WGS84 ellipsoid).
+      minimum: -180
+      exclusiveMinimum: false
+      maximum: 180
+      exclusiveMaximum: false
+      type: number
+      format: double
+      example: 12.34
+
+    LonLatPair:
+      description: Longitude/Latitude pair (in that order) used for specifying geographical vertex. Specified as an array. Order is important!
+      type: array
+      maxItems: 2
+      minItems: 2
+      items:
+        $ref: '#/components/schemas/LongitudeOrLatitude'
+      example: [-122.106325, 47.660898]
+
+    #
+    # GeoJSON definitions
+    #
+
+    # Original version: https://gist.github.com/bubbobne/fe5f2db65acf039be6a9fd92fc9c7233
+    # Edits by joseph.rios@nasa.gov
+
+    #MIT License
+    #Copyright (c) 2017 Daniele Andreis
+    #Permission is hereby granted, free of charge, to any person obtaining a copy
+    #of this software and associated documentation files (the "Software"), to deal
+    #in the Software without restriction, including without limitation the rights
+    #to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    #copies of the Software, and to permit persons to whom the Software is
+    #furnished to do so, subject to the following conditions:
+    #
+    #
+    #The above copyright notice and this permission notice shall be included in all
+    #copies or substantial portions of the Software.
+    #
+    #THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    #IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    #FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    #AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    #LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    #SOFTWARE.
+
+    Point:
+      type: object
+      description: GeoJSon Point, limited to 2D.
+      externalDocs:
+        url: https://tools.ietf.org/html/rfc7946#section-3.1.2
+      properties:
+        type:
+          description: The type of Geometry. In this case, must be 'Point' per GeoJSON spec.
+          type: string
+          enum:
+          - Point
+        coordinates:
+          $ref: '#/components/schemas/LonLatPair'
+
+    Polygon:
+      type: object
+      required:
+      - type
+      - coordinates
+      description: GeoJSon Polygon. Positions all 2D.
+      externalDocs:
+        url: https://tools.ietf.org/html/rfc7946#section-3.1.6
+      properties:
+        type:
+          description: |
+            The type of Geometry. In this case, must be 'Polygon' per GeoJSON
+            spec.  Note that the "coordinates" member is validated to be be an
+            array of size one. This implies there are no interior rings allowed
+            currently.
+          type: string
+          enum:
+          - Polygon
+        coordinates:
+          type: array
+          description: >-
+            The number of polygons allowed.  Currently 1, implying no interior
+            rings.  If this number is changes, the maxItems should be considered.
+            From RFC7946:
+            o  For type "Polygon", the "coordinates" member MUST be an array of
+            linear ring coordinate arrays.
+            o  For Polygons with more than one of these rings, the first MUST be
+            the exterior ring, and any others MUST be interior rings.  The
+            exterior ring bounds the surface, and the interior rings (if
+            present) bound holes within the surface.
+            Again, note we only allow a single set of coordinates, implying no
+            interior rings.
+          minItems: 1
+          maxItems: 1
+          items:
+            type: array
+            description: >-
+              The number of vertices in this polygon. From RFC7946:
+                o  A linear ring is a closed LineString with four or more positions.
+                o  The first and last positions are equivalent, and they MUST contain
+                identical values; their representation SHOULD also be identical.
+                o  A linear ring is the boundary of a surface or the boundary of a
+                hole in a surface.
+                o  A linear ring MUST follow the right-hand rule with respect to the
+                area it bounds, i.e., exterior rings are counterclockwise, and
+                holes are clockwise.  (also in the spec:  parsers SHOULD NOT reject
+                Polygons that do not follow the right-hand rule.)
+                https://tools.ietf.org/html/rfc7946#section-3.1.6
+            minItems: 4
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/Point'
+
+    Circle:
+      description: |-
+        Local extension of the GeoJSON specification to add a circular area defined by a
+        Point/Radius pair. We extend the Properties object to include a 'radius' value (see
+        CircleProperties for details).
+      required:
+      - type
+      - geometry
+      - properties
+      type: object
+      properties:
+        type:
+          description: The type of Geometry. In this case, must be 'Feature' per GeoJSON spec.
+          type: string
+          enum:
+          - Feature
+        geometry:
+          type: object
+          properties:
+            type:
+              description: The type of Geometry. Must be Point.
+              type: string
+              enum:
+              - Point
+            coordinates:
+              $ref: '#/components/schemas/Point'
+        properties:
+          $ref: '#/components/schemas/CircleProperties'
+
+    #
+    # End of GeoJSON definitions
+    #
+
+    Volume3D:
+      description: |-
+        A three-dimensional geographic volume consisting of a vertically-extruded shape.  Exactly one of
+        `outline_polygon` or `outline_circle` must be specified.
+      required:
+      - altitude_lower
+      - altitude_upper
+      type: object
+      properties:
+        outline_circle:
+          $ref: '#/components/schemas/Circle'
+          description: A circular geographic shape on the surface of the earth.
+        outline_polygon:
+          $ref: '#/components/schemas/Polygon'
+          description: A polygonal geographic shape on the surface of the earth.
+        altitude_lower:
+          description: Minimum bounding altitude of this volume.
+          $ref: '#/components/schemas/Altitude'
+        altitude_upper:
+          description: Maximum bounding altitude of this volume.
+          $ref: '#/components/schemas/Altitude'
+
+    Volume4D:
+      description: Contiguous block of geographic spacetime.
+      required:
+      - volume
+      type: object
+      properties:
+        volume:
+          $ref: '#/components/schemas/Volume3D'
+        time_start:
+          description: Beginning time of this volume.
+          $ref: '#/components/schemas/Time'
+        time_end:
+          description: End time of this volume.
+          $ref: '#/components/schemas/Time'
+
+    ErrorResponse:
+      description: |-
+        Human-readable string returned when an error occurs
+        as a result of a USS - DSS transaction.
+      type: object
+      properties:
+        message:
+          description: |-
+            Human-readable message indicating what error occurred and/or why.
+          type: string
+          example: 'The error occurred because [...]'
+
+    SubscriptionState:
+      description: |-
+        State of Subscription which is causing a notification to be sent.
+      required:
+      - subscription_id
+      - notification_index
+      type: object
+      properties:
+        subscription_id:
+          $ref: '#/components/schemas/SubscriptionUUID'
+        notification_index:
+          $ref: '#/components/schemas/SubscriptionNotificationIndex'
+
+    SubscriberToNotify:
+      description: |-
+        Subscriber to notify of a change in the airspace.  This is provided by the DSS
+        to a client changing the airspace, and it is the responsibility of that client
+        to send a notification to the specified USS according to the change made to the
+        airspace.
+      required:
+      - subscriptions
+      - uss_base_url
+      type: object
+      properties:
+        subscriptions:
+          description: Subscription(s) prompting this notification.
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionState'
+          minItems: 1
+        uss_base_url:
+          $ref: '#/components/schemas/SubscriptionUssBaseURL'
+
+    Subscription:
+      description: |-
+        Specification of a geographic area that a client is interested
+        in on an ongoing basis (e.g., "planning area").
+      required:
+      - id
+      - version
+      - notification_index
+      - uss_base_url
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/SubscriptionUUID'
+        version:
+          description: |-
+            Sequential version that the DSS increments every time the Subscription changes.  A USS
+            must specify this version when modifying an existing Subscription to ensure consistency
+            in read-modify-write operations and distributed systems.
+          type: integer
+          format: int32
+          minimum: 1
+          exclusiveMinimum: false
+        notification_index:
+          $ref: '#/components/schemas/SubscriptionNotificationIndex'
+        time_start:
+          description: |-
+            If set, this subscription will not receive notifications involving airspace changes
+            entirely before this time.
+          $ref: '#/components/schemas/Time'
+        time_end:
+          description: |-
+            If set, this subscription will not receive notifications involving airspace changes
+            entirely after this time.
+          $ref: '#/components/schemas/Time'
+        uss_base_url:
+          $ref: '#/components/schemas/SubscriptionUssBaseURL'
+        notify_for_operations:
+          description: If true, trigger notifications when Operations are created, updated, or deleted.  Otherwise, changes in Operations should not trigger notifications.
+          type: boolean
+          default: false
+        notify_for_constraints:
+          description: If true, trigger notifications when Constraints are created, updated, or deleted.  Otherwise, changes in Constraints should not trigger notifications.
+          type: boolean
+          default: false
+        implicit_subscription:
+          description: |-
+            True if this Subscription was implicitly created by the DSS via the creation of an
+            Operation, and should therefore be deleted by the DSS when that Operation is deleted.
+          type: boolean
+          default: false
+        dependent_operations:
+          description: List of Operations (UUIDs) that are dependent on this Subscription.
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityUUID'
+          default: []
+
+    SubscriptionNotificationIndex:
+      format: int32
+      description: Tracks the notifications sent for a subscription so the subscriber
+        can detect missed notifications more easily.
+      type: integer
+      minimum: 0
+      exclusiveMinimum: false
+      default: 0
+
+    SearchSubscriptionParameters:
+      description: |-
+        Parameters for a request to find Subscriptions matching the provided criteria.
+      type: object
+      properties:
+        area_of_interest:
+          $ref: '#/components/schemas/Volume4D'
+
+    SearchSubscriptionsResponse:
+      description: Response to DSS query for subscriptions in a particular geographic area.
+      required:
+      - subscriptions
+      type: object
+      properties:
+        subscriptions:
+          description: Subscriptions that overlap the specified geographic area.
+          type: array
+          items:
+            $ref: '#/components/schemas/Subscription'
+          default: []
+
+    GetSubscriptionResponse:
+      description: Response to DSS request for the subscription with the given id.
+      required:
+      - subscription
+      type: object
+      properties:
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+
+    PutSubscriptionParameters:
+      description: |-
+        Parameters for a request to create/update a subscription in the DSS.
+      required:
+      - extents
+      - old_version
+      - uss_base_url
+      type: object
+      properties:
+        extents:
+          $ref: '#/components/schemas/Volume4D'
+        old_version:
+          description: |-
+            To ensure consistency in read-modify-write operations and distributed systems, the client must
+            specify the version of this Subscription in the DSS that it is attempting to modify.  If a new
+            Subscription is being created, this version should be set to 0.
+          type: integer
+          format: int32
+          minimum: 0
+          exclusiveMinimum: false
+          default: 0
+        uss_base_url:
+          $ref: '#/components/schemas/SubscriptionUssBaseURL'
+        notify_for_operations:
+          description: If true, trigger notifications when Operations are created, updated, or deleted.  Otherwise, changes in Operations should not trigger notifications.
+          type: boolean
+          default: false
+        notify_for_constraints:
+          description: If true, trigger notifications when Constraints are created, updated, or deleted.  Otherwise, changes in Constraints should not trigger notifications.
+          type: boolean
+          default: false
+
+    SubscriptionUssBaseURL:
+      description: |-
+        The base URL of a USS implementation of the parts of the USS-USS API necessary for
+        receiving the notifications requested by this Subscription.
+      : '#/components/schemas/UssBaseURL'
+
+    PutSubscriptionResponse:
+      description: |-
+        Response for a request to create or update a subscription.
+      required:
+      - subscription
+      type: object
+      properties:
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+        operations:
+          description: |-
+            Operations in or near the subscription area at the time of creation/update,
+            if `notify_for_operations` is true
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationReference'
+          default: []
+        constraints:
+          description: |-
+            Constraints in or near the subscription area at the time of creation/update,
+            if `notify_for_constraints` is true
+            was specified.
+          type: array
+          items:
+            $ref: '#/components/schemas/ConstraintReference'
+          default: []
+
+    DeleteSubscriptionResponse:
+      description: Response for a successful request to delete an Subscription.
+      required:
+      - subscription
+      type: object
+      properties:
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+
+    UssBaseURL:
+      description: |-
+        The base URL of a USS implementation of part or all of the USS-USS API. Per the USS-USS API, the full URL
+        of a particular resource can be constructed by appending, e.g., `/uss/v1/{resource}/{id}` to this base URL.
+        Accordingly, this URL may not have a trailing '/' character.
+      type: string
+      example: 'https://utm_uss.com/utm'
+
+    OperationState:
+      description: |-
+        State of an Operation.
+
+        'Accepted': This Operation was fully deconflicted from other Entities at the time it changed to this
+        state, but no aircraft associated with it are active yet.  The create or update request for this
+        Operation must include a Key containing all OVNs for all relevant Entities.
+
+        'Activated': One or more aircraft associated with this Operation are, or will imminently be, in
+        flight.  The create or update request for this Operation must include a Key containing all OVNs for
+        all relevant Entities.
+
+        'NonConforming': This Operation is outside of the planned volume.  The new or updated volumes MUST
+        contain the actual position of the aircraft.  In this state, the `/v1/operations/{entityuuid}/telemetry'
+        USS-USS endpoint should respond, if available, to queries from USS peers.  The create or update request
+        for this Operation may omit a Key in this case because the Operation is being adjusted as flown and
+        cannot necessarily deconflict.
+
+        'Contingent': This Operation is executing a contingency action, either because it has been
+        NonConforming for a certain period of time, or because of operator initiation.  This state must
+        transition to Ended.  The new or updated volumes MUST contain the actual position of the aircraft.
+        In this state, the `/v1/operations/{entityuuid}/telemetry' USS-USS endpoint should respond, if available,
+        to queries from USS peers.  The create or update request for this Operation may omit a Key in this
+        case because the Operation is being adjusted as flown and cannot necessarily deconflict.
+
+        'Ended': This Operation has ended (due to either an Operator-induced change or flight completion).
+      type: string
+      enum:
+      - Accepted
+      - Activated
+      - NonConforming
+      - Contingent
+      - Ended
+
+    OperationReference:
+      description: |-
+        The high-level information of a planned or active Operation with the URL
+        of a USS to query for details.  Note: 'OVN' is returned ONLY to the USS that
+        created the Operation but NEVER to other USS instances.
+      required:
+      - id
+      - owner
+      - version
+      - time_start
+      - time_end
+      - uss_base_url
+      - subscription_id
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/EntityUUID'
+        owner:
+          type: string
+          example: 'uss1'
+          description: |-
+            Created by the DSS based on creating client's ID (via access token).  Used internal
+            to the DSS for restricting mutation and deletion operations to owner.  Used by USSs
+            to reject Operation update notifications originating from a USS that does not own
+            the Operation.
+        version:
+          description: |-
+            Sequential version that the DSS increments every time the Operation changes.  A USS
+            may use this version to determine which Operation references have new details that
+            must be retrieved.
+          type: integer
+          format: int32
+          minimum: 1
+          exclusiveMinimum: false
+        ovn:
+          description: |-
+            Opaque version number of this Operation.  Populated only when the OperationReference
+            is owned by the USS retrieving or providing it.  Not populated when the
+            OperationReference is not owned by the USS retrieving or providing it (instead, the
+            USS must obtain the OVN from the details retrieved from the owning USS).
+          $ref: '#/components/schemas/EntityOVN'
+        time_start:
+          description: Beginning time of Operation.
+          $ref: '#/components/schemas/Time'
+        time_end:
+          description: End time of Operation.
+          $ref: '#/components/schemas/Time'
+        uss_base_url:
+          $ref: '#/components/schemas/OperationUssBaseURL'
+        subscription_id:
+          description: |-
+            The ID of the Subscription that is ensuring the Operation owner receives relevant
+            airspace updates.
+          $ref: '#/components/schemas/SubscriptionUUID'
+
+    OperationUssBaseURL:
+      description: |-
+        The base URL of a USS implementation that implements the parts of the USS-USS API necessary for
+        providing the details of this Operation, and telemetry during non-conformance or contingency,
+        if applicable.
+      : '#/components/schemas/UssBaseURL'
+
+    PutOperationReferenceParameters:
+      description: |-
+        Parameters for a request to create an OperationReference in the DSS.
+        A subscription to changes overlapping this volume may be implicitly created, but
+        this can be overridden by providing the (optional) 'subscription_id' to use.
+        Note: The implicit subscription is managed by the DSS, not the USS.
+      required:
+      - extents
+      - old_version
+      - state
+      - uss_base_url
+      type: object
+      properties:
+        extents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Volume4D'
+          minItems: 1
+        old_version:
+          description: |-
+            To ensure consistency in read-modify-write operations and distributed systems, the client must
+            specify the version of this Operation in the DSS that it is attempting to modify.  If a new
+            Operation is being created, this version should be set to 0.
+          type: integer
+          format: int32
+          minimum: 0
+          exclusiveMinimum: false
+          default: 0
+        key:
+          description: |-
+            Proof that the USS creating or mutating this Operation was aware of the current state of the
+            airspace, with the expectation that this Operation is therefore deconflicted from all relevant
+            features in the airspce.  This field is not required when declaring an Operation NonConforming
+            or Contingent, or when there are no relevant Entities in the airspace, but is otherwise required.
+            OVNs for Constraints are required if and only if the USS owning this Operation is considering
+            Constraints, which is determined by whether the Subscription associated with this Operation
+            triggers notifications for Constraints.
+          $ref: '#/components/schemas/Key'
+        state:
+          $ref: '#/components/schemas/OperationState'
+        uss_base_url:
+          $ref: '#/components/schemas/OperationUssBaseURL'
+        subscription_id:
+          description: |-
+            The ID of an existing Subscription that the USS will use to keep the operator informed about
+            updates to relevant airspace information.  If this field is not provided, then the
+            `new_subscription` field must be provided in order to provide notification capability
+            for the Operation.  The Subscription specified by this ID must cover at least the area over
+            which this Operation is conducted, and it must provide notifications for Operations.
+          $ref: '#/components/schemas/EntityUUID'
+        new_subscription:
+          description: |-
+            If an existing Subscription is not specified in `subscription_id`, then this field must be
+            populated.  When this field is populated, an implicit Subscription will be created and
+            associated with this Operation, and will generally be deleted automatically upon the
+            deletion of this Operation.
+          $ref: '#/components/schemas/ImplicitSubscriptionParameters'
+
+    ImplicitSubscriptionParameters:
+      description: |-
+        Information necessary to create a Subscription to serve a single Operation's notification needs.
+      type: object
+      required:
+      - uss_base_url
+      properties:
+        uss_base_url:
+          description: |-
+            The base URL of a USS implementation of the parts of the USS-USS API necessary for
+            receiving the notifications that the Operation must be aware of.  This includes, at least,
+            notifications for relevant changes in Operations.
+          $ref: '#/components/schemas/SubscriptionUssBaseURL'
+        notify_for_constraints:
+          description: |-
+            True if this Operation's Subscription should trigger notifications when Constraints change.  Otherwise, changes in Constraints should not trigger notifications.
+          type: boolean
+          default: false
+
+    GetOperationReferenceResponse:
+      description: |-
+        Response to DSS request for the OperationReference with the given ID.
+      required:
+      - operation_reference
+      type: object
+      properties:
+        operation_reference:
+          $ref: '#/components/schemas/OperationReference'
+
+    ChangeOperationReferenceResponse:
+      description: |-
+        Response to a request to create, update, or delete an OperationReference
+        in the DSS.
+      required:
+      - subscribers
+      - operation_reference
+      type: object
+      properties:
+        subscribers:
+          description: |-
+            DSS subscribers that this client now has the obligation to
+            notify of the Operation changes just made.  This client must call POST
+            for each provided URL according to the USS-USS `/v1/operations/{entityuuid}`
+            path API.  The client's own Subscriptions will also be included in this list.
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriberToNotify'
+          default: []
+        operation_reference:
+          $ref: '#/components/schemas/OperationReference'
+
+    SearchOperationReferenceParameters:
+      description: |-
+        Parameters for a request to find OperationReferences matching the provided criteria.
+      type: object
+      properties:
+        area_of_interest:
+          $ref: '#/components/schemas/Volume4D'
+
+    SearchOperationReferenceResponse:
+      description: Response to DSS query for OperationReferences in an area of interest.
+      required:
+      - operation_references
+      type: object
+      properties:
+        operation_references:
+          description: OperationReferences in the area of interest.
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationReference'
+          default: []
+
+    ConstraintReference:
+      description: A ConstraintReference (area in which a Constraint is present, along
+        with other high-level information, but no details).  The DSS reports only
+        these references and clients must exchange details and additional information
+        peer-to-peer.
+      required:
+      - id
+      - owner
+      - version
+      - time_start
+      - time_end
+      - uss_base_url
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/EntityUUID'
+        owner:
+          type: string
+          example: 'uss1'
+          description: |-
+            Created by the DSS based on creating client's ID (via access token).  Used internal
+            to the DSS for restricting mutation and deletion operations to owner.  Used by USSs
+            to reject Constraint update notifications originating from a USS that does not own
+            the Constraint.
+        version:
+          description: |-
+            Sequential version that the DSS increments every time the Constraint changes.  A USS
+            may use this version to determine which Constraint references have new details that
+            must be retrieved.
+          type: integer
+          format: int32
+          minimum: 1
+          exclusiveMinimum: false
+        ovn:
+          description: |-
+            Opaque version number of this Constraint.  Populated only when the ConstraintReference
+            is owned by the USS retrieving or providing it.  Not populated when the
+            ConstraintReference is not owned by the USS retrieving or providing it (instead, the
+            USS must obtain the OVN from the details retrieved from the owning USS).
+          $ref: '#/components/schemas/EntityOVN'
+        time_start:
+          $ref: '#/components/schemas/Time'
+        time_end:
+          $ref: '#/components/schemas/Time'
+        uss_base_url:
+          $ref: '#/components/schemas/ConstraintUssBaseURL'
+
+    ConstraintUssBaseURL:
+      description: |-
+        The base URL of a USS implementation that implements the parts of the USS-USS API necessary for
+        providing the details of this Constraint.
+      : '#/components/schemas/UssBaseURL'
+
+    PutConstraintReferenceParameters:
+      description: Parameters for a request to create/update a ConstraintReference in the
+        DSS.
+      required:
+      - extents
+      - old_version
+      - uss_base_url
+      type: object
+      properties:
+        extents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Volume4D'
+          minItems: 1
+        old_version:
+          description: |-
+            To ensure consistency in read-modify-write operations and distributed systems, the client must
+            specify the version of this Constraint in the DSS that it is attempting to modify.  If a new
+            Constraint is being created, this version should be set to 0.
+          type: integer
+          format: int32
+          minimum: 0
+          exclusiveMinimum: false
+          default: 0
+        uss_base_url:
+          $ref: '#/components/schemas/ConstraintUssBaseURL'
+
+    GetConstraintReferenceResponse:
+      description: Response to DSS request for the ConstraintReference with the given
+        ID.
+      required:
+      - constraint_reference
+      type: object
+      properties:
+        constraint_reference:
+          $ref: '#/components/schemas/ConstraintReference'
+
+    ChangeConstraintReferenceResponse:
+      description: Response to a request to create, update, or delete a ConstraintReference.
+        in the DSS.
+      required:
+      - subscribers
+      type: object
+      properties:
+        subscribers:
+          description: DSS subscribers that this client now has the obligation to
+            notify of the Constraint changes just made.  This client must call POST
+            for each provided URL according to the USS-USS `/v1/constraints/{entityuuid}`
+            path API.  The client's own Subscriptions will also be included in this list.
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriberToNotify'
+          default: []
+        constraint_reference:
+          $ref: '#/components/schemas/ConstraintReference'
+
+    SearchConstraintReferenceParameters:
+      description: |-
+        Parameters for a request to find ConstraintReferences matching the provided criteria.
+      type: object
+      properties:
+        area_of_interest:
+          $ref: '#/components/schemas/Volume4D'
+
+    SearchConstraintReferencesResponse:
+      description: Response to DSS query for ConstraintReferences in an area of interest.
+      required:
+      - constraint_references
+      type: object
+      properties:
+        constraint_references:
+          description: ConstraintReferences in the area of interest.
+          type: array
+          items:
+            $ref: '#/components/schemas/ConstraintReference'
+          default: []
+
+    EntityReference:
+      description: Reference to a generic Entity known to the DSS.
+      type: object
+      properties:
+        operation_reference:
+          $ref: '#/components/schemas/OperationReference'
+        constraint_reference:
+          $ref: '#/components/schemas/ConstraintReference'
+
+    AirspaceConflictResponse:
+      description: Data provided when an airspace conflict was encountered.
+      type: object
+      properties:
+        message:
+          description: Human-readable message indicating what error occurred and/or
+            why.
+          type: string
+        entity_conflicts:
+          description: List of Entity references for which current proof of knowledge
+            was not provided.  If this field is present and contains elements, the
+            calling USS should query the details URLs for these Entities to obtain
+            their details and correct OVNs.  The OVNs can be used to update
+            the key, at which point the USS may retry this call.
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityReference'
+          default: []
+
+    ErrorReport:
+      description: A report informing a server of a communication problem.
+      required:
+      - url
+      - response_code
+      - problem
+      type: object
+      properties:
+        url:
+          description: URL of request that resulted in an error.
+          type: string
+        headers:
+          description: Set of headers included in request that resulted in an error.
+          type: array
+          items:
+            type: string
+          default: []
+        body:
+          description: Base64-encoded body content sent in request that resulted in an error.
+          type: string
+        response_code:
+          type: integer
+          format: int32
+          description: HTTP response code encountered in error response.
+        response_body:
+          type: string
+          description: Base64-encoded body content received in response that was in error.
+        problem:
+          type: string
+          description: Human-readable description of the problem with the response.
+        time_request:
+          description: The time at which the problematic request was initiated.
+          $ref: '#/components/schemas/Time'
+        time_response:
+          description: The time at which the problematic response was received.
+          $ref: '#/components/schemas/Time'
+        report_id:
+          description: ID assigned by the server receiving the report.  Not populated when submitting a report.
+          type: string
+          maxLength: 128
+
+    #
+    # USS-USS schema components
+    #
+    OperationDetails:
+      description: |-
+        Details of a UTM Operation. Note that this data is not stored in the DSS; only with the clients.
+      required:
+      - volumes
+      type: object
+      properties:
+        volumes:
+          description: Volumes that wholly contain the Operation while being as small
+            as practical.
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/Volume4D'
+        state:
+          $ref: '#/components/schemas/OperationState'
+        vlos:
+          description: If true, this Operation is ensuring deconfliction visually and volumes of other Operations may overlap the volumes of this Operation.
+          type: boolean
+          default: false
+
+
+    Operation:
+      description: Full description of a UTM Operation.
+      required:
+      - reference
+      - details
+      type: object
+      properties:
+        reference:
+          $ref: '#/components/schemas/OperationReference'
+        details:
+          $ref: '#/components/schemas/OperationDetails'
+
+    PutOperationDetailsParameters:
+      description: |-
+        Parameters of a message informing of detailed information for a peer Operation.
+        Pushed (by a client, not the DSS) directly to clients with subscriptions when
+        another client makes a change to airspace within a cell with a subscription.
+      required:
+      - operation_id
+      - subscriptions
+      type: object
+      properties:
+        operation_id:
+          description: ID of Operation that has changed.
+          $ref: '#/components/schemas/EntityUUID'
+        operation:
+          description: |-
+            Full information about the Operation that has changed.  If this field is omitted,
+            the Operation was deleted.  A newly-created Operation can be differentiated from
+            an updated Operation by examining the `version` field.  The `ovn` field in the
+            nested `reference` must be populated.
+          $ref: '#/components/schemas/Operation'
+        subscriptions:
+          type: array
+          description: Subscription(s) prompting this notification.
+          items:
+            $ref: '#/components/schemas/SubscriptionState'
+          minItems: 1
+
+    GetOperationDetailsResponse:
+      description: Response to peer request for the details of Operation with the given ID.
+      required:
+      - operation
+      type: object
+      properties:
+        operation:
+          $ref: '#/components/schemas/Operation'
+
+    ConstraintDetails:
+      description: Details of a UTM Constraint. Note that this data is
+        not stored in the DSS; only with the clients.
+      required:
+      - volumes
+      type: object
+      properties:
+        volumes:
+          description: Volumes that wholly contain the Constraint while being as small
+            as practical.
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/Volume4D'
+        type:
+          description: Type of airspace feature this Constraint represents.
+          type: string
+          example: 'NonUTMAircraftOperations'
+
+    Constraint:
+      description: Full specification of a UTM Constraint.
+      required:
+      - reference
+      - details
+      type: object
+      properties:
+        reference:
+          $ref: '#/components/schemas/ConstraintReference'
+        details:
+          $ref: '#/components/schemas/ConstraintDetails'
+
+    PutConstraintDetailsParameters:
+      description: Parameters of a message informing of new full information for a
+        Constraint.  Pushed (by a client, not the DSS) directly to clients with subscriptions
+        when another client makes a change to airspace within a cell with a subscription.
+      required:
+      - constraint_id
+      - subscriptions
+      type: object
+      properties:
+        constraint_id:
+          description: ID of Constraint that has changed.
+          $ref: '#/components/schemas/EntityUUID'
+        constraint:
+          description: |-
+            Full information about the Constraint that has changed.  If this field is omitted,
+            the Constraint was deleted.  A newly-created Constraint can be differentiated from
+            an updated Constraint by examining the `version` field.  The `ovn` field in the
+            nested `reference` must be populated.
+          $ref: '#/components/schemas/Constraint'
+        subscriptions:
+          description: Subscription(s) prompting this notification.
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionState'
+          minItems: 1
+
+    GetConstraintDetailsResponse:
+      description: |-
+        Response to peer request for the details of Operation with the given ID.
+      required:
+      - constraint
+      type: object
+      properties:
+        constraint:
+          $ref: '#/components/schemas/Constraint'
+
+    GetOperationTelemetryResponse:
+      description: Response to a peer request for telemetry of an off-nominal Operation.
+      required:
+      - telemetry
+      type: object
+      properties:
+        telemetry:
+          $ref: '#/components/schemas/VehicleTelemetry'
+
+    VehicleTelemetry:
+      description: Vehicle position, altitude, and velocity.
+      required:
+      - id
+      - time_measured
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/EntityUUID'
+        position:
+          $ref: '#/components/schemas/Position'
+        velocity:
+          $ref: '#/components/schemas/Velocity'
+        time_measured:
+          $ref: '#/components/schemas/Time'
+
+    PositionAccuracyVertical:
+      description: |-
+        Vertical error that is likely to be present in this reported position.
+        This is the GVA enumeration from ADS-B, plus some finer values for UAS.
+      type: string
+      enum:
+      - VAUnknown
+      - VA150mPlus
+      - VA150m
+      - VA45m
+      - VA25m
+      - VA10m
+      - VA3m
+      - VA1m
+
+    PositionAccuracyHorizontal:
+      description: |-
+        Horizontal error that is likely to be present in this reported position.
+        This is the NACp enumeration from ADS-B, plus 1m for a more complete range for UAS.
+      type: string
+      enum:
+      - HAUnknown
+      - HA10NMPlus
+      - HA10NM
+      - HA4NM
+      - HA2NM
+      - HA1NM
+      - HA05NM
+      - HA03NM
+      - HA01NM
+      - HA005NM
+      - HA30m
+      - HA10m
+      - HA3m
+      - HA1m
+
+    Position:
+      description: |-
+        Location of the vehicle (UAS) as reported for UTM.
+        Note: 'accuracy' values are required when extrapolated field is true
+        and always in the entry for the current state.
+      type: object
+      properties:
+        longitude:
+          $ref: '#/components/schemas/Longitude'
+        latitude:
+          $ref: '#/components/schemas/Latitude'
+        accuracy_h:
+          $ref: '#/components/schemas/PositionAccuracyHorizontal'
+        accuracy_v:
+          $ref: '#/components/schemas/PositionAccuracyVertical'
+        extrapolated:
+          description: |-
+            True if this position was generated primarily by computation
+            rather than primarily from a direct instrument measurement.
+            Assumed false if not specified.
+          type: boolean
+          default: false
+        altitude:
+          $ref: '#/components/schemas/Altitude'
+
+    Velocity:
+      required:
+      - speed
+      - units_speed
+      type: object
+      properties:
+        speed:
+          format: float
+          type: number
+          description: |-
+            Ground speed in meters/second.
+          example: 200.1
+        units_speed:
+          type: string
+          enum:
+          - MetersSecond
+        track:
+          format: float
+          type: number
+          description: |-
+            Direction of flight expressed as a "True North-based" ground track angle.
+            This value is provided in degrees East of North with a minimum resolution of 1 degree.
+          example: 120
+
 paths:
-  /v1/dss/op_refs:
-    summary: Set of OperationalIntentReferences in the DSS.
-    description: ""
-    get:
+  #
+  # DSS Endpoint: OPERATIONS
+  #
+
+  /dss/v1/operation_references/query:
+    summary: Query all Operations in the DSS that intersect with a specified geographic area, altitude-range, and time-range.
+    description: "Interface to Operation references in the DSS."
+
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchOperationReferenceParameters'
+        required: true
       tags:
-      - dss_ops
-      operationId: searchOperationalIntentReferences
-      parameters:
-      - name: area
-        description: The area in which to search for OperationalIntentReferences.  References for some OperationalIntents near this area but wholly outside it may also be returned.
-        schema:
-          $ref: '#/components/schemas/GeoPolygonString'
-        in: query
-        required: true
-      - name: earliest_time
-        description: If specified, indicates non-interest in any OperationalIntents that end
-          before this time.  RFC 3339 format, per OpenAPI specification.
-        schema:
-          format: date-time
-          type: string
-        in: query
-        required: true
-      - name: latest_time
-        description: If specified, indicates non-interest in any OperationalIntents that start
-          after this time.  RFC 3339 format, per OpenAPI specification.
-        schema:
-          format: date-time
-          type: string
-        in: query
-        required: true
+      - "Operation references"
+      - dss
+      operationId: searchOpeationReferences
+      security:
+      - Authority:
+        - utm.strategic_coordination
+      summary: Retrieve all Operation references in the specified area/volume/time from the DSS.
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SearchOperationalIntentReferencesResponse'
-          description: OperationalIntentReferences were successfully retrieved.
+                $ref: '#/components/schemas/SearchOperationReferenceResponse'
+          description: Operations were successfully retrieved.
         "400":
           content:
             application/json:
@@ -71,26 +1358,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: The requested area was too large.
-      security:
-      - AuthFromAuthorizationAuthority:
-        - utm.read.operational_intents
-      summary: /dss/op_refs
-      description: Retrieve all OperationalIntentReferences in the DAR for a given area during
-        the given time.  Note that references to some OperationalIntents lying entirely
-        outside the requested area may be returned as well.
-  /v1/dss/op_refs/{id}:
-    summary: An OperationalIntentReference in the DSS.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: The client issued too many requests in a short period of time.
+
+  /dss/v1/operation_references/{entityuuid}:
+    summary: CRUD endpoint for a specified Operation reference in the DSS.
+    parameters:
+    - name: entityuuid
+      description: EntityUUID of the Operation.
+      schema:
+        $ref: '#/components/schemas/EntityUUID'
+      in: path
+      required: true
+
     get:
       tags:
-      - dss_ops
-      operationId: getOperationalIntentReference
+      - "Operation references"
+      - dss
+      operationId: getOpeationReference
+      security:
+      - Authority:
+        - utm.strategic_coordination
+      summary: Retrieve the specified Operation reference from the DSS.
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetOperationalIntentReferenceResponse'
-          description: OperationalIntentReference was retrieved successfully.
+                $ref: '#/components/schemas/GetOperationReferenceResponse'
+          description: Operation reference was retrieved successfully.
         "400":
           content:
             application/json:
@@ -117,28 +1417,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: The requested Entity could not be found.
-      security:
-      - AuthFromAuthorizationAuthority:
-        - utm.read.operational_intents
-      summary: /dss/op_refs/{id}
-      description: Retrieve OperationalIntentReference information from the DSS.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: The client issued too many requests in a short period of time.
+
     put:
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateOperationalIntentReferenceParameters'
+              $ref: '#/components/schemas/PutOperationReferenceParameters'
         required: true
       tags:
-      - dss_ops
-      operationId: createOperationalIntentReference
+      - "Operation references"
+      - dss
+      operationId: updateOpeationReference
+      security:
+      - Authority:
+        - utm.strategic_coordination
+      summary: Create/Update the specified Operation reference in the DSS.
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeOperationalIntentReferenceResponse'
-          description: An OperationalIntentReference was created successfully in the DSS.
+                $ref: '#/components/schemas/ChangeOperationReferenceResponse'
+          description: An Operation reference was updated successfully in the DSS.
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeOperationReferenceResponse'
+          description: An Operation reference was created successfully in the DSS.
         "400":
           content:
             application/json:
@@ -146,7 +1459,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: |-
             * One or more input parameters were missing or invalid.
-            * The request attempted to mutate the Identification Service Area in a disallowed way.
+            * The request attempted to mutate the Operation in a disallowed way.
         "401":
           content:
             application/json:
@@ -168,108 +1481,45 @@ paths:
                 $ref: '#/components/schemas/AirspaceConflictResponse'
           description: |-
             * The provided key did not prove knowledge of all current and relevant airspace Entities
-            * An OperationalIntentReference with the specified ID already exists.
-            * Despite repeated attempts, the DSS was unable to update the DAR because of other simultaneous changes.
+            * The provided `old_version` does not match the current version of the existing Operation.
+            * Despite repeated attempts, the DSS was unable to complete the update because of other simultaneous changes.
         "413":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-          description: The area of the OperationalIntentReference is too large.
-      security:
-      - AuthFromAuthorizationAuthority:
-        - utm.write.operational_intents
-      summary: /dss/op_refs/{id}
-      description: Create a new OperationalIntentReference.  This call will fail if an OperationalIntentReference
-        with the same ID already exists.
-    parameters:
-    - name: id
-      description: EntityUUID of the OperationalIntentReference.
-      schema:
-        $ref: '#/components/schemas/EntityUUID'
-      in: path
-      required: true
-  /v1/dss/op_refs/{id}/{version}:
-    summary: A specific version of an OperationalIntentReference in the DSS.
-    put:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateOperationalIntentReferenceParameters'
-        required: true
-      tags:
-      - dss_ops
-      operationId: updateOperationalIntentReference
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChangeOperationalIntentReferenceResponse'
-          description: An existing OperationalIntentReference was updated successfully in
-            the DSS.
-        "400":
+          description: The area of the Operation is too large.
+        "429":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-          description: |-
-            * One or more input parameters were missing or invalid.
-            * The request attempted to mutate the OperationalIntentReference in a disallowed way.
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Bearer access token was not provided in Authorization header,
-            token could not be decoded, or token was invalid.
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: The access token was decoded successfully but did not include
-            a scope appropriate to this endpoint.
-        "409":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AirspaceConflictResponse'
-          description: |-
-            * The provided key did not prove knowledge of all current and relevant airspace Entities
-            * The specified OperationalIntentReference's current version does not match the provided version.
-            * Despite repeated attempts, the DSS was unable to update the DAR because of other simultaneous changes.
-        "413":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: The area of the OperationalIntentReference is too large.
-      security:
-      - AuthFromAuthorizationAuthority:
-        - utm.write.operational_intents
-      summary: /dss/op_refs/{id}/{version}
-      description: Update an OperationalIntentReference.  The full content of the existing
-        OperationalIntentReference will be replaced with the provided information as only
-        the most recent version is retained.
+          description: The client issued too many requests in a short period of time.
+
     delete:
       tags:
-      - dss_ops
-      operationId: deleteOperationalIntentReference
+      - "Operation references"
+      - dss
+      operationId: deleteOpeationReference
+      security:
+      - Authority:
+        - utm.strategic_coordination
+      summary: Remove the specified Operation reference from the DSS.
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeOperationalIntentReferenceResponse'
-          description: OperationalIntentReference was successfully deleted from DSS.
+                $ref: '#/components/schemas/ChangeOperationReferenceResponse'
+          description: The specified Operation was successfully removed from the DSS.
         "400":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-          description: One or more input parameters were missing or invalid.
+          description: |-
+            * One or more input parameters were missing or invalid.
+            * The request attempted to mutate the Operation in a disallowed way.
         "401":
           content:
             application/json:
@@ -282,1674 +1532,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-          description: |-
-            * The access token was decoded successfully but did not include a scope appropriate to this endpoint.
-            * The OperationalIntentReference does not belong to the client requesting deletion.
+          description: The access token was decoded successfully but did not include
+            a scope appropriate to this endpoint.
         "404":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-          description: Entity could not be deleted because it could not be found.
+          description: The requested Entity could not be found.
         "409":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: |-
-            * The specified OperationalIntentReference's current version does not match the provided version.
-            * Despite repeated attempts, the DSS was unable to update the DAR because of other simultaneous changes.
-      security:
-      - AuthFromAuthorizationAuthority:
-        - utm.write.operational_intents
-      summary: /dss/op_refs/{id}/{version}
-      description: Delete an OperationalIntentReference.
-    parameters:
-    - name: id
-      description: EntityUUID of the OperationalIntentReference.
-      schema:
-        $ref: '#/components/schemas/EntityUUID'
-      in: path
-      required: true
-    - name: version
-      description: Version string used to reference an OperationalIntentReference at a particular
-        point in time.  Matches the `token` field in the OVN of the OperationalIntentReference.  Any updates to an existing OperationalIntentReference must contain
-        the corresponding version to maintain idempotent updates.
-      schema:
-        type: string
-      in: path
-      required: true
-components:
-  schemas:
-    Hash:
-      description: Base64 representation of a SHA256 hash of the given inner content.  If
-        this Hash is for multiple entries, the entries should be concatenated together
-        with delimiting commas (but no spaces) before performing the hash.  For instance,
-        the Hash of the three UUIDs 4704a043-8212-4256-9dec-7ef5a79218e2, b1220203-fc2a-422d-9604-12464a9b45e0,
-        and cca95e90-3163-47d8-bb0e-a7c5c88f078f would be d8NoNy0cPAd7D3b8Qb0DSzcrBVJElwBfmqVcytIoWsk=
-        in base64 which is 77c368372d1c3c077b0f76fc41bd034b372b05524497005f9aa55ccad2285ac9
-        in hexadecimal.
-      maxLength: 44
-      minLength: 44
-      pattern: ^[0-9a-zA-Z+\/]{43}=$
-      type: string
-      example: d8NoNy0cPAd7D3b8Qb0DSzcrBVJElwBfmqVcytIoWsk=
-    DeconflictionKey:
-      description: |
-        Proof that a client has obtained the latest airspace content, used to ensure that write operations to the DSS occur only when the latest content is known (i.e. has been read). The client is required to pass a current DeconflictionKey constructed from information obtained with previous read operations and subsequent requests for full information, and optionally, subscription updates for deconflicted write operations to the DSS.  The contents of this data structure are generated by the client.
-      type: object
-      properties:
-        ovns:
-          $ref: '#/components/schemas/OVNDictionary'
-          description: For each of a subset of Entities declared by the DSS in the
-            area of interest, the OVN of the current version of the full information
-            of that Entity.  This EntityOVN is provided by the client who defined
-            the Entity, accompanying the full Entity definition data when that data
-            is received.
-        hashes:
-          $ref: '#/components/schemas/DeconflictionKeyHash'
-          description: Optional (optimization).  May be provided for a set of Entities
-            so that each of the included EntityOVNs does not need to be included
-            in the `ovns` property.
-        subscription:
-          $ref: '#/components/schemas/SubscriptionUUID'
-          description: If the client obtained the information in this DeconflictionKey
-            via a subscription, this field is set to the ID of that subscription so
-            the usage of subscriptions can be tracked and unused subscriptions can
-            be removed.
-    DeconflictionKeyHash:
-      description: A shortcut (optimization) data structure that may be provided instead
-        of a large set of individually-listed EntityOVNs.
-      required:
-      - entity_ids
-      - entity_ovns
-      type: object
-      properties:
-        entity_ids:
-          $ref: '#/components/schemas/Hash'
-          description: Hash of an ordered list of other clients’ EntityUUIDs in the
-            airspace (obtained from DSS via GET /v1/dss/<entity type>s) excluding
-            the EntityUUIDs explicitly specified in DeconflictionKey's `ovns`
-            property.
-        entity_ovns:
-          $ref: '#/components/schemas/Hash'
-          description: Hash of an ordered list of EntityOVNs that correspond
-            with the list of EntityUUIDs used to generate the `entity_ids` property
-            value.
-    Token:
-      $ref: '#/components/schemas/UUIDv4'
-      description: Universally-unique identifier associated with a specific set of
-        data.
-    EntityOVN:
-      title: EntityOVN
-      description: A token associated with a particular UTM Entity+version created
-        by the DSS upon creation or modification of an Entity reference and provided
-        to the client creating or modifying the Entity reference.  The EntityOVN
-        is stored privately by the DSS and then compared against entries in a Key
-        provided to mutate the airspace.  The EntityOVN is also provided by
-        the client whenever that client transmits the full information of the Entity
-        (either via GET, or via a subscription notification).
-      required:
-      - token
-      - version
-      type: object
-      properties:
-        version:
-          format: int32
-          description: This version increases each time an Entity is modified.  If
-            a client ever receives a subscription update with an EntityOVN for
-            a particular EntityUUID that is smaller than the cached EntityOVN
-            for that EntityUUID, that subscription update should be ignored.
-          type: integer
-        token:
-          $ref: '#/components/schemas/Token'
-          description: Unique value associated with a specific version of a specific
-            Entity.  Token value may not be reused for any other Entity versions;
-            it must change each time the Entity changes.
-    OVNEntry:
-      description: Mapping between an EntityUUID and an EntityOVN.
-      required:
-      - id
-      - sig
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/EntityUUID'
-          description: ""
-        sig:
-          $ref: '#/components/schemas/EntityOVN'
-          description: ""
-    OVNDictionary:
-      description: Collection of mappings between EntityUUID and EntityOVN.
-      type: array
-      items:
-        $ref: '#/components/schemas/OVNEntry'
-    Volume3D:
-      description: A three-dimensional geographic volume consisting of a vertically-extruded
-        polygon.
-      required:
-      - footprint
-      type: object
-      properties:
-        footprint:
-          $ref: '#/components/schemas/GeoPolygon'
-          description: Projection of this volume onto the earth's surface.
-        altitude_lo:
-          $ref: '#/components/schemas/Altitude'
-          description: Minimum bounding altitude of this volume.
-        altitude_hi:
-          $ref: '#/components/schemas/Altitude'
-          description: Maximum bounding altitude of this volume.
-    Volume4D:
-      description: Contiguous block of geographic spacetime.
-      required:
-      - spatial_volume
-      type: object
-      properties:
-        spatial_volume:
-          $ref: '#/components/schemas/Volume3D'
-          description: Constant spatial extent of this volume.
-        time_start:
-          format: date-time
-          description: Beginning time of this volume.  RFC 3339 format, per OpenAPI
-            specification.
-          type: string
-        time_end:
-          format: date-time
-          description: End time of this volume.  RFC 3339 format, per OpenAPI specification.
-          type: string
-    GetSubscriptionResponse:
-      description: Response to DSS request for the subscription with the given id.
-      required:
-      - subscription
-      type: object
-      properties:
-        subscription:
-          $ref: '#/components/schemas/Subscription'
-    SearchSubscriptionsResponse:
-      description: Response to DSS query for subscriptions in a particular area.
-      required:
-      - subscriptions
-      type: object
-      properties:
-        subscriptions:
-          description: Subscriptions that overlap the specified area.
-          type: array
-          items:
-            $ref: '#/components/schemas/Subscription'
-    GetFlightsResponse:
-      description: Response to remote ID provider query for flight information in
-        an area of interest.
-      required:
-      - timestamp
-      - flights
-      type: object
-      properties:
-        timestamp:
-          format: date-time
-          description: The remote ID service provider's timestamp for when this information
-            was current.  RFC 3339 format, per OpenAPI specification.
-          type: string
-        flights:
-          description: A list of all flights that have been within the requested area
-            within the remote ID retention period.  This includes flights that are
-            not currently within the requested area, but were within the requested
-            area within the remote ID retention period.
-          type: array
-          items:
-            $ref: '#/components/schemas/RIDFlight'
-    URL:
-      description: Valid http or https URL.
-      type: string
-    HostName:
-      description: Valid hostname (no protocol or path allowed).
-      type: string
-    SubscriptionNotificationIndex:
-      format: int32
-      description: Tracks the notifications sent for a subscription so the subscriber
-        can detect missed notifications more easily.
-      type: integer
-    SubscriptionState:
-      description: State of AreaSubscription which is causing a notification to be
-        sent.
-      required:
-      - subscription
-      type: object
-      properties:
-        subscription_id:
-          $ref: '#/components/schemas/SubscriptionUUID'
-        notification_index:
-          $ref: '#/components/schemas/SubscriptionNotificationIndex'
-    UUIDv4:
-      description: UUID v4.
-      maxLength: 36
-      minLength: 36
-      type: string
-      example: 03e5572a-f733-49af-bc14-8a18bd53ee39
-    Version:
-      description: A version string used to reference an object at a particular point
-        in time. Any updates to an object must contain the corresponding version to
-        maintain idempotent updates.
-      type: string
-    EntityUUID:
-      $ref: '#/components/schemas/UUIDv4'
-      description: Universally-unique identifier for an Entity communicated through
-        the DSS.  Formatted as UUIDv4.
-    SubscriptionUUID:
-      $ref: '#/components/schemas/UUIDv4'
-      description: Universally-unique identifier for a Subscription communicated through
-        the DSS.  Formatted as UUIDv4.
-    RIDFlightID:
-      description: |-
-        ID, unique to a remote ID service provider, which identifies a particular flight for which the remote ID service provider is providing remote ID services.
-
-        The following characters are not allowed: \0 \t \r \n # % / : ? @ [ \ ]
-      maxLength: 255
-      minLength: 1
-      type: string
-      example: uss1.JA6kHYCcByQ-6AfU
-    RIDAuthData:
-      description: Additional authentication data.
-      required:
-      - format
-      - data
-      type: object
-      properties:
-        format:
-          description: Format of additional authentication data.
-          type: string
-        data:
-          description: Authentication data in form specified by `format`.
-          type: string
-    GetFlightDetailsResponse:
-      description: Response to remote ID provider query for details about a specific
-        flight.
-      required:
-      - details
-      type: object
-      properties:
-        details:
-          $ref: '#/components/schemas/RIDFlightDetails'
-    HorizontalAccuracy:
-      description: |-
-        This is the NACp enumeration from ADS-B, plus 1m for a more complete range for UAs.
-
-        `HAUnknown`: Unknown horizontal accuracy
-
-        `HA10NMPlus`: > 10NM (18.52km)
-
-        `HA10NM`: < 10NM (18.52km)
-
-        `HA4NM`: < 4NM (7.408km)
-
-        `HA2NM`: < 2NM (3.704km)
-
-        `HA1NM`: < 1NM (1852m)
-
-        `HA05NM`: < 0.5NM (926m)
-
-        `HA03NM`: < 0.3NM (555.6m)
-
-        `HA01NM`: < 0.1NM (185.2m)
-
-        `HA005NM`: < 0.05NM (92.6m)
-
-        `HA30m`: < 30m
-
-        `HA10m`: < 10m
-
-        `HA3m`: < 3m
-
-        `HA1m`: < 1m
-      enum:
-      - HAUnknown
-      - HA10NMPlus
-      - HA10NM
-      - HA4NM
-      - HA2NM
-      - HA1NM
-      - HA05NM
-      - HA03NM
-      - HA01NM
-      - HA005NM
-      - HA30m
-      - HA10m
-      - HA3m
-      - HA1m
-      type: string
-    VerticalAccuracy:
-      description: |-
-        This is the GVA enumeration from ADS-B, plus some finer values for UAs.
-
-        `VAUnknown`: Unknown vertical accuracy
-
-        `VA150mPlus`: > 150m
-
-        `VA150m`: < 150m
-
-        `VA45m`: < 45m
-
-        `VA25m`: < 25m
-
-        `VA10m`: < 10m
-
-        `VA3m`: < 3m
-
-        `VA1m`: < 1m
-      enum:
-      - VAUnknown
-      - VA150mPlus
-      - VA150m
-      - VA45m
-      - VA25m
-      - VA10m
-      - VA3m
-      - VA1m
-      type: string
-    ErrorResponse:
-      description: Data provided when an off-nominal condition was encountered.
-      type: object
-      properties:
-        message:
-          description: Human-readable message indicating what error occurred and/or
-            why.
-          type: string
-    DeleteSubscriptionResponse:
-      description: Response for a successful request to delete an Subscription.
-      required:
-      - subscription
-      type: object
-      properties:
-        subscription:
-          $ref: '#/components/schemas/Subscription'
-          description: The Subscription which was deleted.
-    SpeedAccuracy:
-      description: |-
-        This is the same enumeration scale and values from ADS-B NACv.
-
-        `SAUnknown`: Unknown speed accuracy
-
-        `SA10mpsPlus`: > 10 m/s
-
-        `SA10mps`: < 10 m/s
-
-        `SA3mps`: < 3 m/s
-
-        `SA1mps`: < 1 m/s
-
-        `SA03mps`: < 0.3 m/s
-      enum:
-      - SAUnknown
-      - SA10mpsPlus
-      - SA10mps
-      - SA3mps
-      - SA1mps
-      - SA03mps
-      type: string
-    RIDAircraftPosition:
-      description: Position of an aircraft as reported for remote ID purposes.
-      required:
-      - lat
-      - lng
-      - alt
-      type: object
-      properties:
-        lat:
-          $ref: '#/components/schemas/Latitude'
-        lng:
-          $ref: '#/components/schemas/Longitude'
-        alt:
-          format: float
-          description: 'Geodetic altitude (NOT altitude above launch, altitude above
-            ground, or EGM96): aircraft distance above the WGS84 ellipsoid as measured
-            along a line that passes through the aircraft and is normal to the surface
-            of the WGS84 ellipsoid.  This value is provided in meters and must have
-            a minimum resolution of 1 meter.'
-          type: number
-          example: 1321.2
-        accuracy_h:
-          $ref: '#/components/schemas/HorizontalAccuracy'
-          description: Horizontal error that is likely to be present in this reported
-            position.  Required when `extrapolated` field is true and always in the
-            entry for the current state.
-        accuracy_v:
-          $ref: '#/components/schemas/VerticalAccuracy'
-          description: Vertical error that is likely to be present in this reported
-            position.  Required when `extrapolated` field is true and always in the
-            entry for the current state.
-        extrapolated:
-          description: True if this position was generated primarily by computation
-            rather than primarily from a direct instrument measurement.  Assumed false
-            if not specified.
-          type: boolean
-        pressure_altitude:
-          format: float
-          description: The uncorrected altitude (based on reference standard 29.92
-            inHg, 1013.25 mb) provides a reference for algorithms that utilize "altitude
-            deltas" between aircraft.  This value is provided in meters and must have
-            a minimum resolution of 1 meter.
-          type: number
-    GeoPolygonString:
-      description: |-
-        Plain-string representation of a geographic polygon consisting of at least three geographic points describing a closed polygon on the earth.  Each point consists of latitude,longitude in degrees.  Points are also comma-delimited, so this parameter will look like `lat1,lng1,lat2,lng2,lat3,lng3,...`  Latitude values must fall in the range [-90, 90] and longitude values must fall in the range [-180, 180].
-
-        All of the requirements and clarifications for GeoPolygon apply to GeoPolygonString as well.
-      type: string
-    RIDHeight:
-      description: A relative altitude for the purposes of remote ID.
-      required:
-      - distance
-      - reference
-      type: object
-      properties:
-        distance:
-          format: float
-          description: Distance above reference datum.  This value is provided in
-            meters and must have a minimum resolution of 1 meter.
-          type: number
-        reference:
-          description: The reference datum above which the height is reported.
-          enum:
-          - TakeoffLocation
-          - GroundLevel
-          type: string
-    Latitude:
-      format: double
-      description: Degrees of latitude north of the equator, with reference to the
-        WGS84 ellipsoid.
-      maximum: 90
-      exclusiveMaximum: false
-      minimum: -90
-      exclusiveMinimum: false
-      type: number
-      example: 34.123
-    Longitude:
-      format: double
-      description: Degrees of longitude east of the Prime Meridian, with reference
-        to the WGS84 ellipsoid.
-      maximum: -180
-      exclusiveMaximum: false
-      minimum: 180
-      exclusiveMinimum: false
-      type: number
-      example: -118.456
-    LatLngPoint:
-      description: Point on the earth's surface.
-      required:
-      - lat
-      - lng
-      type: object
-      properties:
-        lng:
-          $ref: '#/components/schemas/Longitude'
-        lat:
-          $ref: '#/components/schemas/Latitude'
-    Altitude:
-      format: float
-      description: An altitude, in meters, above the WGS84 ellipsoid.
-      type: number
-      example: 19.5
-    RIDFlight:
-      description: Description of a remote ID flight.
-      required:
-      - id
-      - aircraft_type
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/RIDFlightID'
-        aircraft_type:
-          $ref: '#/components/schemas/RIDAircraftType'
-          description: Generic type of aircraft.
-        current_state:
-          $ref: '#/components/schemas/RIDAircraftState'
-          description: |-
-            The most up-to-date state of the aircraft.  Required when the aircraft is currently in the requested area unless `volumes` is specified.
-
-            If current data is not being received from the UAS by the Service Provider, the lack of change in this field is sufficient to indicate that current data is not being received.
-        volumes:
-          description: The set of spacetime volumes the aircraft is within.  Required
-            if `current_state` is not specified.  The fields `time_start` and `time_end`
-            are required if `current_state` is not specified.
-          minItems: 1
-          type: array
-          items:
-            $ref: '#/components/schemas/Volume4D'
-        simulated:
-          description: If specified as true, this flight is not a physical aircraft;
-            it is just a simulation to test the system.
-          type: boolean
-        recent_positions:
-          description: |-
-            A short collection of recent aircraft movement, specified only when `include_recent_positions` is true.  If `volumes` is not specified and `include_recent_positions` is true, then this field is required.
-
-            Recent positions provided in this field must conform to requirements in the standard which generally prohibit including positions outside the requested area except transitionally when the aircraft enters or exits the requested area, and which prohibit including positions that not sufficiently recent.
-
-            Note that a UI should not draw a connective line between two consecutive position reports that both lie outside the requested area.
-          type: array
-          items:
-            $ref: '#/components/schemas/RIDRecentAircraftPosition'
-    GeoPolygon:
-      description: |-
-        An enclosed area on the earth.
-        The bounding edges of this polygon shall be the shortest paths between connected vertices.  This means, for instance, that the edge between two points both defined at a particular latitude is not generally contained at that latitude.
-        The winding order shall be interpreted as the order which produces the smaller area.
-        The path between two vertices shall be the shortest possible path between those vertices.
-        Edges may not cross.
-        Vertices may not be duplicated.  In particular, the final polygon vertex shall not be identical to the first vertex.
-      required:
-      - vertices
-      type: object
-      properties:
-        vertices:
-          minItems: 3
-          type: array
-          items:
-            $ref: '#/components/schemas/LatLngPoint'
-    PutIdentificationServiceAreaResponse:
-      description: Response to a request to create or update a reference to an Identification
-        Service Area in the DSS.
-      required:
-      - service_area
-      - subscribers
-      type: object
-      properties:
-        subscribers:
-          description: DSS subscribers that this client now has the obligation to
-            notify of the Identification Service Area changes just made.  This client
-            must call POST for each provided URL according to the `/uss/isas/{id}`
-            path API.
-          type: array
-          items:
-            $ref: '#/components/schemas/SubscriberToNotify'
-        service_area:
-          $ref: '#/components/schemas/IdentificationServiceArea'
-          description: Resulting service area stored in DSS.
-    SearchIdentificationServiceAreasResponse:
-      description: Response to DSS query for Identification Service Areas in an area
-        of interest.
-      required:
-      - service_areas
-      type: object
-      properties:
-        service_areas:
-          description: Identification Service Areas in the area of interest.
-          type: array
-          items:
-            $ref: '#/components/schemas/IdentificationServiceArea'
-    PutIdentificationServiceAreaNotificationParameters:
-      description: Parameters of a message informing of new full information for an
-        Identification Service Area.  Pushed (by a client, not the DSS) directly to
-        clients with subscriptions when another client makes a change to airspace
-        within a cell with a subscription.
-      required:
-      - subscriptions
-      type: object
-      properties:
-        service_area:
-          $ref: '#/components/schemas/IdentificationServiceArea'
-          description: |-
-            Identification Service Area that the notifying client changed or created.
-
-            If this field is populated, the Identification Service Area was created or updated.  If this field is not populated, the Identification Service Area was deleted.
-        subscriptions:
-          description: Subscription(s) prompting this notification.
-          type: array
-          items:
-            $ref: '#/components/schemas/SubscriptionState'
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: |-
-            The new or updated extents of the Identification Service Area.
-
-            Omitted if Identification Service Area was deleted.
-    SubscriberToNotify:
-      description: Subscriber to notify of a creation/change/deletion of a change
-        in the airspace.  This is provided by the DSS to a client changing the airspace,
-        and it is the responsibility of the client changing the airspace (they will
-        receive a set of these notification requests) to send a notification to each
-        specified `url`.
-      required:
-      - subscriptions
-      - url
-      type: object
-      properties:
-        subscriptions:
-          description: Subscription(s) prompting this notification.
-          type: array
-          items:
-            $ref: '#/components/schemas/SubscriptionState'
-        url:
-          $ref: '#/components/schemas/URL'
-          description: The endpoint that the client mutating the airspace should provide
-            the update to.  API depends on the DSS action taken that triggered this
-            notification request.
-    DeleteIdentificationServiceAreaResponse:
-      description: Response for a request to delete an Identification Service Area.
-      required:
-      - service_area
-      - subscribers
-      type: object
-      properties:
-        service_area:
-          $ref: '#/components/schemas/IdentificationServiceArea'
-          description: Indentification Service Area that was just deleted.
-        subscribers:
-          description: DSS subscribers that this client now has the obligation to
-            notify of the Identification Service Area just deleted.  This client must
-            call POST for each provided URL according to the `/uss/isas`
-            path API.
-          type: array
-          items:
-            $ref: '#/components/schemas/SubscriberToNotify'
-    IdentificationServiceAreaURL:
-      $ref: '#/components/schemas/URL'
-      description: The URL at which notifications regarding Identification Service
-        Areas may be delivered.  See the `/uss/isas/{id}`
-        path for specification of this endpoint.
-      type: string
-      example: https://example.com/isas/a4c6f8c0-ad77-4d93-9cc2-ec8601383f96
-    PutSubscriptionResponse:
-      description: Response for a request to create or update a subscription.
-      required:
-      - subscription
-      type: object
-      properties:
-        identification_service_areas:
-          description: Identification Service Areas in or near the subscription area
-            at the time of creation/update, if `identification_service_area_url` callback
-            was specified.
-          type: array
-          items:
-            $ref: '#/components/schemas/IdentificationServiceArea'
-        operational_intents:
-          description: OperationalIntents in or near the subscription area
-            at the time of creation/update, if `operational_intent_url` callback
-            was specified.
-          type: array
-          items:
-            $ref: '#/components/schemas/OperationalIntent'
-        constraints:
-          description: Constraints in or near the subscription area
-            at the time of creation/update, if `constraint_url` callback
-            was specified.
-          type: array
-          items:
-            $ref: '#/components/schemas/Constraint'
-        subscription:
-          $ref: '#/components/schemas/Subscription'
-          description: Result of the operation on the subscription.
-    RIDOperationalStatus:
-      description: Indicates operational status of associated aircraft.
-      enum:
-      - Undeclared
-      - Ground
-      - Airborne
-      type: string
-    RIDFlightDetails:
-      description: Details about a flight reported by a remote ID service provider.  At
-        least one of the registration or serial fields must be filled if required
-        by CAA.
-      required:
-      - id
-      type: object
-      properties:
-        id:
-          description: ID for this flight, matching argument in request.
-          type: string
-          example: a3423b-213401-0023
-        operator_id:
-          description: 'CAA-issued registration/license ID for the remote pilot or
-            operator. '
-          type: string
-        operator_location:
-          $ref: '#/components/schemas/LatLngPoint'
-          description: Location of party controlling the aircraft.
-        operation_description:
-          description: Free-text field that enables the operator to describe the purpose
-            of a flight, if so desired.
-          type: string
-          example: SafeFlightDrone company doing survey with DJI Inspire 2. See my
-            privacy policy www.example.com/privacy.
-        auth_data:
-          $ref: '#/components/schemas/RIDAuthData'
-        serial_number:
-          description: Can be specified when no registration ID exists and required
-            by law in a region. This is expressed in the ANSI/CTA-2063 Physical Serial
-            Number format.
-          type: string
-          example: INTCJ123-4567-890
-        registration_number:
-          description: If a CAA provides a method of registering UAS, this number
-            is provided by the CAA or its authorized representative.  Required when
-            required by law in a region.
-          type: string
-          example: FA12345897
-    RIDRecentAircraftPosition:
-      description: ""
-      required:
-      - time
-      - position
-      type: object
-      properties:
-        time:
-          format: date-time
-          description: Time at which this position applied.  RFC 3339 format, per
-            OpenAPI specification.
-          type: string
-        position:
-          $ref: '#/components/schemas/RIDAircraftPosition'
-    GetIdentificationServiceAreaResponse:
-      description: Response to DSS request for the identification service area with
-        the given id.
-      required:
-      - service_area
-      type: object
-      properties:
-        service_area:
-          $ref: '#/components/schemas/IdentificationServiceArea'
-    CreateIdentificationServiceAreaParameters:
-      description: Parameters for a request to create an Identification Service Area
-        in the DSS.
-      required:
-      - extents
-      - flights_url
-      type: object
-      properties:
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: |-
-            The bounding spacetime extents of this Identification Service Area.  End time must be specified.  If start time is not specified, it will be set to the current time.  Start times in the past should be rejected by the DSS, except that it may adjust very recent start times to the current time.
-
-            These extents should not reveal any sensitive information about the flight or flights within them.  This means, for instance, that extents should not tightly-wrap a flight path, nor should they generally be centered around the takeoff point of a single flight.
-        flights_url:
-          $ref: '#/components/schemas/RIDFlightsURL'
-    UpdateIdentificationServiceAreaParameters:
-      description: Parameters for a request to update an Identification Service Area
-        in the DSS.
-      required:
-      - extents
-      - flights_url
-      type: object
-      properties:
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: |-
-            The bounding spacetime extents of this Identification Service Area.  End time must be specified.  If start time is not specified, it will remain unchanged.  Start times in the past should be rejected by the DSS unless they are unchanged from the Identification Service Area's current start time.
-
-            These extents should not reveal any sensitive information about the flight or flights within them.  This means, for instance, that extents should not tightly-wrap a flight path, nor should they generally be centered around the takeoff point of a single flight.
-        flights_url:
-          $ref: '#/components/schemas/RIDFlightsURL'
-    CreateSubscriptionParameters:
-      description: Parameters for a request to create a subscription in the DSS.
-      required:
-      - extents
-      - callbacks
-      type: object
-      properties:
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: |-
-            The spacetime extents of the volume to subscribe to.
-
-            This subscription will automatically be deleted after its end time if it has not been refreshed by then.  If end time is not specified, the value will be chosen automatically by the DSS.
-
-            Note that some Entities triggering notifications may lie entirely outside the requested area.
-        callbacks:
-          $ref: '#/components/schemas/SubscriptionCallbacks'
-    UpdateSubscriptionParameters:
-      description: Parameters for a request to update a subscription in the DSS.
-      required:
-      - extents
-      - callbacks
-      type: object
-      properties:
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: |-
-            The spacetime extents of the volume to subscribe to.
-
-            This subscription will automatically be deleted after its end time if it has not been refreshed by then.  If end time is not specified, the value will be chosen automatically by the DSS.
-
-            Note that some Entities triggering notifications may lie entirely outside the requested area.
-        callbacks:
-          $ref: '#/components/schemas/SubscriptionCallbacks'
-    Subscription:
-      description: Specification of a geographic area that a client is interested
-        in on an ongoing basis (e.g., “planning area”).  Internal to the DSS.
-      required:
-      - id
-      - url
-      - notification_index
-      - owner
-      - version
-      - callbacks
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/SubscriptionUUID'
-          description: Unique identifier for this subscription.
-        callbacks:
-          $ref: '#/components/schemas/SubscriptionCallbacks'
-        owner:
-          description: Assigned by the DSS based on creating client’s ID (via access
-            token).  Used for restricting mutation and deletion operations to owner.
-          type: string
-          example: myuss
-        notification_index:
-          $ref: '#/components/schemas/SubscriptionNotificationIndex'
-        time_end:
-          format: date-time
-          description: If set, this subscription will be automatically removed after
-            this time.  RFC 3339 format, per OpenAPI specification.
-          type: string
-        time_start:
-          format: date-time
-          description: If set, this Subscription will not generate any notifications
-            before this time.  RFC 3339 format, per OpenAPI specification.
-          type: string
-        version:
-          $ref: '#/components/schemas/Version'
-    IdentificationServiceArea:
-      description: An Identification Service Area (area in which remote ID services
-        are being provided).  The DSS reports only these declarations and clients
-        must exchange flight information peer-to-peer.
-      required:
-      - flights_url
-      - owner
-      - time_start
-      - time_end
-      - version
-      - id
-      type: object
-      properties:
-        flights_url:
-          $ref: '#/components/schemas/RIDFlightsURL'
-        owner:
-          description: Assigned by the DSS based on creating client’s ID (via access
-            token).  Used for restricting mutation and deletion operations to owner.
-          type: string
-          example: myuss
-        time_start:
-          format: date-time
-          description: Beginning time of service.  RFC 3339 format, per OpenAPI specification.
-          type: string
-        time_end:
-          format: date-time
-          description: End time of service.  RFC 3339 format, per OpenAPI specification.
-          type: string
-        version:
-          $ref: '#/components/schemas/Version'
-        id:
-          $ref: '#/components/schemas/EntityUUID'
-          description: Unique identifier for this Identification Service Area.
-    RIDAircraftState:
-      description: State of an aircraft for the purposes of remote ID.
-      required:
-      - timestamp
-      - timestamp_accuracy
-      - accuracy_h
-      - accuracy_v
-      - speed
-      - vertical_speed
-      - track
-      - speed_accuracy
-      - position
-      type: object
-      properties:
-        timestamp:
-          format: date-time
-          description: Time at which this state was valid.  This may be the time coming
-            from the source, such as a GPS, or the time when the system computes the
-            values using an algorithm such as an Extended Kalman Filter (EKF).  Timestamp
-            must be expressed with a minimum resolution of 1/10th of a second.  RFC
-            3339 format, per OpenAPI specification.
-          type: string
-        timestamp_accuracy:
-          format: float
-          description: 'Declaration of timestamp accuracy, which is the largest difference
-            between Timestamp and true time of applicability for any of the following
-            fields: Latitude, Longitude, Geodetic Altitude, Pressure Altitude of Position,
-            Height. to determine time of applicability of the location data provided.  Expressed
-            in seconds, precise to 1/10ths of seconds. The accuracy reflects the 95%
-            uncertainty bound value for the timestamp.'
-          minimum: 0
-          exclusiveMinimum: false
-          type: number
-        operational_status:
-          $ref: '#/components/schemas/RIDOperationalStatus'
-        position:
-          $ref: '#/components/schemas/RIDAircraftPosition'
-        track:
-          format: float
-          description: Direction of flight expressed as a "True North-based" ground
-            track angle.  This value is provided in degrees East of North with a minimum
-            resolution of 1 degree.
-          maximum: 360
-          exclusiveMaximum: true
-          minimum: 0
-          exclusiveMinimum: false
-          type: number
-        speed:
-          format: float
-          description: Ground speed of flight in meters per second.
-          minimum: 0
-          exclusiveMinimum: false
-          type: number
-          example: 1.9
-        speed_accuracy:
-          $ref: '#/components/schemas/SpeedAccuracy'
-          description: Accuracy of horizontal ground speed.
-        vertical_speed:
-          format: float
-          description: Speed up (vertically) WGS84-HAE, m/s.
-          type: number
-          example: 0.2
-        height:
-          $ref: '#/components/schemas/RIDHeight'
-        group_radius:
-          format: float
-          description: Farthest horizontal distance from reported group location at
-            which an aircraft in the group may be located (meters).  This value contains
-            the "Operating Area Radius" data from the common data dictionary when
-            group operation area is specified by point-radius.
-          minimum: 0
-          exclusiveMinimum: true
-          type: number
-        group_ceiling:
-          format: float
-          description: Maximum altitude (meters WGS84-HAE) of Group Operation.  This
-            value contains the "Operating Area Ceiling" data from the common data
-            dictionary when group operation area is specified by point-radius.
-          type: number
-        group_floor:
-          format: float
-          description: Minimum altitude (meters WGS84-HAE) of Group Operation.  If
-            not specified, ground level shall be assumed.  This value contains the
-            "Operating Area Floor" data from the common data dictionary when group
-            operation area is specified by point-radius.
-          type: number
-        group_count:
-          format: int32
-          description: When operating a group (or formation or swarm), number of aircraft
-            in group.  This value contains the "Operating Area Count" data from the
-            common data dictionary when group operation area is specified by point-radius.
-          minimum: 1
-          exclusiveMinimum: false
-          type: integer
-        group_time_start:
-          format: date-time
-          description: Time at which a group operation starts.  This value contains
-            the "Operation Area Start" data from the common data dictionary when group
-            operation area is specified by point-radius.
-          type: string
-        group_time_end:
-          format: date-time
-          description: Time at which a group operation starts.  This value contains
-            the "Operation Area End" data from the common data dictionary when group
-            operation area is specified by point-radius.
-          type: string
-    RIDAircraftType:
-      description: |-
-        Type of aircraft for the purposes of remote ID.
-
-        `VTOL` is a fixed wing aircraft that can take off vertically.  `Rotocraft` includes multirotor.
-      enum:
-      - NotDeclared
-      - Aeroplane
-      - Rotorcraft
-      - Gyroplane
-      - VTOL
-      - Ornithopter
-      - Glider
-      - Kite
-      - FreeBalloon
-      - CaptiveBalloon
-      - Airship
-      - FreeFallOrParachute
-      - Rocket
-      - TetheredPoweredAircraft
-      - GroundObstacle
-      - Other
-      type: string
-    RIDFlightsURL:
-      $ref: '#/components/schemas/URL'
-      description: |-
-        The URL at which the remote ID flights and their details may be retrieved.  See `/flights` and `/flights/{id}/details` paths for specification of this endpoint.
-        This URL is the base flights resource.  If this URL is specified as https://example.com/flights then the flight details for a particular {id} may be obtained at the URL https://example.com/flights/{id}/details.  This URL may not have a trailing / character.
-      type: string
-      example: https://example.com/flights
-    OperationalIntentReference:
-      description: An OperationalIntentReference (area in which an Operation is being conducted,
-        along with other high-level information, but no details).  The DSS reports
-        only these references and clients must exchange details and additional information
-        peer-to-peer.
-      required:
-      - details_url
-      - owner
-      - time_start
-      - time_end
-      - id
-      - priority
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/EntityUUID'
-          description: Unique identifier for this OperationalIntentReference.
-        details_url:
-          $ref: '#/components/schemas/OperationalIntentDetailsURL'
-        error_reports_url:
-          $ref: '#/components/schemas/ErrorReportsURL'
-        owner:
-          description: Assigned by the DSS based on creating client’s ID (via access
-            token).  Used for restricting mutation and deletion operations to owner.
-          type: string
-          example: myuss
-        time_start:
-          format: date-time
-          description: Beginning time of Operation.  RFC 3339 format, per OpenAPI
-            specification.
-          type: string
-        time_end:
-          format: date-time
-          description: End time of Operation.  RFC 3339 format, per OpenAPI specification.
-          type: string
-        ovn:
-          $ref: '#/components/schemas/EntityOVN'
-          description: Opaque version number of this OperationalIntentReference, used for updating or deleting the OperationalIntentReference.  Only populated by the DSS for OperationalIntentReferences owned by the requesting client.  Must be populated by a USS when notifying a subscriber of an altered OperationalIntent or providing full OperationalIntent information.
-        priority:
-          $ref: '#/components/schemas/OperationalIntentPriority'
-        uss_may_be_down:
-          type: boolean
-          description: If specified as true by the DSS, the details for this OperationalIntent may not be accessible.  The OVN for this OperationalIntentReference may be omitted when deconflicting an OperationalIntent, at which point this OperationalIntent will be disabled.
-        disabled:
-          type: boolean
-          description: If specified as true by the DSS, this OperationalIntent has been disabled and will not be permitted to transition to Activated.  This means aircraft for this OperationalIntent will not be permitted to fly pursuant to this OperationalIntent, so this OperationalIntent may be ignored when planning and its OVN does not need to be provided to prove relevant airspace knowledge.
-    GetOperationalIntentReferenceResponse:
-      description: Response to DSS request for the OperationalIntentReference with the given
-        ID.
-      required:
-      - operational_intent_reference
-      type: object
-      properties:
-        operational_intent_reference:
-          $ref: '#/components/schemas/OperationalIntentReference'
-    UpdateOperationalIntentReferenceParameters:
-      description: Parameters for a request to update an OperationalIntentReference in the
-        DSS.
-      required:
-      - extents
-      - details_url
-      - priority
-      - key
-      type: object
-      properties:
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: The bounding spacetime extents of this OperationalIntentReference.  End
-            time must be specified.  If start time is not specified, it will be set
-            to the current time.  Start times in the past should be rejected by the
-            DSS, except that it may adjust very recent start times to the current
-            time.
-        details_url:
-          $ref: '#/components/schemas/OperationalIntentDetailsURL'
-        error_reports_url:
-          $ref: '#/components/schemas/ErrorReportsURL'
-        priority:
-          $ref: '#/components/schemas/OperationalIntentPriority'
-        key:
-          $ref: '#/components/schemas/DeconflictionKey'
-          description: Proof that the client is aware of all relevant Entities with the requirement that the client has deconflicted with all these Entities.  Relevant Entities for OperationalIntents consist of all Constraints, and OperationalIntents with equal or higher priority.
-    CreateOperationalIntentReferenceParameters:
-      description: Parameters for a request to create an OperationalIntentReference in the
-        DSS.
-      required:
-      - extents
-      - details_url
-      - priority
-      - key
-      type: object
-      properties:
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: The bounding spacetime extents of this OperationalIntentReference.  End
-            time must be specified.  If start time is not specified, it will be set
-            to the current time.  Start times in the past should be rejected by the
-            DSS, except that it may adjust very recent start times to the current
-            time.
-        details_url:
-          $ref: '#/components/schemas/OperationalIntentDetailsURL'
-        error_reports_url:
-          $ref: '#/components/schemas/ErrorReportsURL'
-        priority:
-          $ref: '#/components/schemas/OperationalIntentPriority'
-        key:
-          $ref: '#/components/schemas/DeconflictionKey'
-          description: Proof that the client is aware of all relevant Entities with the requirement that the client has deconflicted with all these Entities.  Relevant Entities for OperationalIntents consist of all Constraints, and OperationalIntents with equal or higher priority.
-    OperationalIntent:
-      description: Full description of a UTM OperationalIntent.
-      required:
-      - reference
-      - details
-      type: object
-      properties:
-        reference:
-          $ref: '#/components/schemas/OperationalIntentReference'
-        details:
-          $ref: '#/components/schemas/OperationalIntentDetails'
-    OperationalIntentDetails:
-      description: Details of a UTM OperationalIntent. Note that this data is not stored in the DSS; only with the clients.
-      required:
-      - volumes
-      type: object
-      properties:
-        volumes:
-          description: Volumes that wholly contain the Operation while being as small
-            as practical.
-          minItems: 1
-          type: array
-          items:
-            $ref: '#/components/schemas/Volume4D'
-        negotiations_url:
-          $ref: '#/components/schemas/NegotiationsURL'
-        state:
-          $ref: '#/components/schemas/OperationalIntentState'
-    RogueFlight:
-      description: Details about a rogue flight inside a Constraint.
-      type: object
-      properties:
-        position_reporting_url:
-          $ref: '#/components/schemas/RIDFlightsURL'
-        flight_id:
-          description: This flight ID may be used to request real-time position updates
-            for the rogue aircraft in this Constraint through the specified remote
-            ID interface.
-          $ref: '#/components/schemas/RIDFlightID'
-    SearchOperationalIntentReferencesResponse:
-      description: Response to DSS query for OperationalIntentReferences in an area of interest.
-      required:
-      - operational_intent_references
-      type: object
-      properties:
-        operational_intent_references:
-          description: OperationalIntentReferences in the area of interest.
-          type: array
-          items:
-            $ref: '#/components/schemas/OperationalIntentReference'
-    PostOperationalIntentNotificationParameters:
-      description: Parameters of a message informing of new full information for an
-        OperationalIntent.  Pushed (by a client, not the DSS) directly to clients with subscriptions
-        when another client makes a change to airspace within a cell with a subscription.
-      required:
-      - subscriptions
-      type: object
-      properties:
-        operational_intent:
-          $ref: '#/components/schemas/OperationalIntent'
-          description: |-
-            Full information for OperationalIntent that the notifying client changed or created.
-
-            If this field is populated, the OperationalIntent was created or updated.  If this field is not populated, the OperationalIntent was deleted.
-        subscriptions:
-          description: Subscription(s) prompting this notification.
-          type: array
-          items:
-            $ref: '#/components/schemas/SubscriptionState'
-    PutErrorReportParameters:
-      description: Parameters of a message informing a USS of an error that the USS would otherwise not notice.
-      required:
-        - endpoint_url
-        - response_code
-        - problem
-        - timestamp
-      type: object
-      properties:
-        endpoint_url:
-          type: string
-          description: URL for request that resulted in an error.
-        headers:
-          description: Set of headers included in request that resulted in an error.
-          type: array
-          items:
-            type: string
-        body:
-          description: Base64-encoded body content sent in request that resulted in an error.
-          type: string
-        response_code:
-          type: integer
-          format: int32
-          description: HTTP response code encountered in error response.
-        response_body:
-          type: string
-          description: Base64-encoded body content received in response that was in error.
-        problem:
-          type: string
-          description: Human-readable description of the problem with the response.
-        timestamp:
-          format: date-time
-          description: When the error was observed.  RFC 3339 format, per OpenAPI
-            specification.
-          type: string
-    CreateConstraintReferenceParameters:
-      description: Parameters for a request to create a ConstraintReference in the
-        DSS.
-      required:
-      - extents
-      - details_url
-      type: object
-      properties:
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: The bounding spacetime extents of this ConstraintReference.  End
-            time must be specified.  If start time is not specified, it will be set
-            to the current time.  Start times in the past should be rejected by the
-            DSS, except that it may adjust very recent start times to the current
-            time.
-        details_url:
-          $ref: '#/components/schemas/ConstraintDetailsURL'
-        error_reports_url:
-          $ref: '#/components/schemas/ErrorReportsURL'
-    GetConstraintReferenceResponse:
-      description: Response to DSS request for the ConstraintReference with the given
-        ID.
-      required:
-      - constraint_reference
-      type: object
-      properties:
-        constraint_reference:
-          $ref: '#/components/schemas/ConstraintReference'
-    ConstraintReference:
-      description: A ConstraintReference (area in which a Constraint is present, along
-        with other high-level information, but no details).  The DSS reports only
-        these references and clients must exchange details and additional information
-        peer-to-peer.
-      required:
-      - id
-      - details_url
-      - owner
-      - time_start
-      - time_end
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/EntityUUID'
-          description: Unique identifier for this ConstraintReference.
-        details_url:
-          $ref: '#/components/schemas/ConstraintDetailsURL'
-        error_reports_url:
-          $ref: '#/components/schemas/ErrorReportsURL'
-        owner:
-          description: Assigned by the DSS based on creating client’s ID (via access
-            token).  Used for restricting mutation and deletion operations to owner.
-          type: string
-          example: myuss
-        time_start:
-          format: date-time
-          description: Beginning time of Operation.  RFC 3339 format, per OpenAPI
-            specification.
-          type: string
-        time_end:
-          format: date-time
-          description: End time of Operation.  RFC 3339 format, per OpenAPI specification.
-          type: string
-        ovn:
-          $ref: '#/components/schemas/EntityOVN'
-          description: Opaque version number of this ConstraintReference, used for updating or deleting the ConstraintReference.  Only populated by the DSS for ConstraintReferences owned by the requesting client.  Must be populated by a USS when notifying a subscriber of an altered Constraint or providing full Constraint information.
-    PostConstraintNotificationParameters:
-      description: Parameters of a message informing of new full information for a
-        Constraint.  Pushed (by a client, not the DSS) directly to clients with subscriptions
-        when another client makes a change to airspace within a cell with a subscription.
-      required:
-      - subscriptions
-      type: object
-      properties:
-        constraint:
-          $ref: '#/components/schemas/Constraint'
-          description: |-
-            Constraint that the notifying client changed or created.
-
-            If this field is populated, the Constraint was created or updated.  If this field is not populated, the Constraint was deleted.
-        subscriptions:
-          description: Subscription(s) prompting this notification.
-          type: array
-          items:
-            $ref: '#/components/schemas/SubscriptionState'
-    Constraint:
-      description: Full specification of a UTM Constraint.
-      required:
-      - reference
-      - details
-      type: object
-      properties:
-        reference:
-          $ref: '#/components/schemas/ConstraintReference'
-        details:
-          $ref: '#/components/schemas/ConstraintDetails'
-    ConstraintDetails:
-      description: Details of a UTM Constraint. Note that this data is
-        not stored in the DSS; only with the clients.
-      required:
-      - volumes
-      type: object
-      properties:
-        volumes:
-          description: Volumes that wholly contain the Constraint while being as small
-            as practical.
-          minItems: 1
-          type: array
-          items:
-            $ref: '#/components/schemas/Volume4D'
-        negotiations_url:
-          $ref: '#/components/schemas/NegotiationsURL'
-        rogue_flight:
-          $ref: '#/components/schemas/RogueFlight'
-          description: If this Constraint is an alert for a rogue flight, this field contains the details
-            for tracking that flight.
-        exempt_operational_intents:
-          description: List of OperationalIntents exempt from this Constraint, if applicable.
-          type: array
-          items:
-            $ref: '#/components/schemas/EntityUUID'
-    ChangeConstraintReferenceResponse:
-      description: Response to a request to create, update, or delete a ConstraintReference.
-        in the DSS.
-      required:
-      - subscribers
-      type: object
-      properties:
-        subscribers:
-          description: DSS subscribers that this client now has the obligation to
-            notify of the Constraint changes just made.  This client must call POST
-            for each provided URL according to the `/uss/constraints/{id}` path API.
-          type: array
-          items:
-            $ref: '#/components/schemas/SubscriberToNotify'
-        constraint_reference:
-          $ref: '#/components/schemas/ConstraintReference'
-          description: Resulting ConstraintReference stored in DSS.  Omitted if and only if ConstraintReference was deleted.
-    ChangeOperationalIntentReferenceResponse:
-      description: Response to a request to create, update, or delete an OperationalIntentReference
-        in the DSS.
-      required:
-      - subscribers
-      type: object
-      properties:
-        subscribers:
-          description: DSS subscribers that this client now has the obligation to
-            notify of the Operation changes just made.  This client must call POST
-            for each provided URL according to the `/uss/ops/{id}` path API.
-          type: array
-          items:
-            $ref: '#/components/schemas/SubscriberToNotify'
-        operational_intent_reference:
-          $ref: '#/components/schemas/OperationalIntentReference'
-          description: Resulting OperationalIntentReference stored in DSS.  Omitted if and only if OperationalIntentReference was deleted.
-    SearchConstraintReferencesResponse:
-      description: Response to DSS query for ConstraintReferences in an area of interest.
-      required:
-      - constraint_references
-      type: object
-      properties:
-        constraint_references:
-          description: ConstraintReferences in the area of interest.
-          type: array
-          items:
-            $ref: '#/components/schemas/ConstraintReference'
-    UpdateConstraintReferenceParameters:
-      description: Parameters for a request to update a ConstraintReference in the
-        DSS.
-      required:
-      - extents
-      - details_url
-      type: object
-      properties:
-        extents:
-          $ref: '#/components/schemas/Volume4D'
-          description: The bounding spacetime extents of this ConstraintReference.  End
-            time must be specified.  If start time is not specified, it will be set
-            to the current time.  Start times in the past should be rejected by the
-            DSS, except that it may adjust very recent start times to the current
-            time.
-        details_url:
-          $ref: '#/components/schemas/ConstraintDetailsURL'
-        error_reports_url:
-          $ref: '#/components/schemas/ErrorReportsURL'
-    EntityReference:
-      description: Reference to a generic Entity known to the DSS.
-      type: object
-      properties:
-        operational_intent_reference:
-          $ref: '#/components/schemas/OperationalIntentReference'
-          description: ""
-        constraint_reference:
-          $ref: '#/components/schemas/ConstraintReference'
-          description: ""
-    GetConstraintResponse:
-      description: Response to peer request for the details of Operation with the
-        given ID.
-      required:
-      - constraint
-      type: object
-      properties:
-        constraint:
-          $ref: '#/components/schemas/Constraint'
-    GetOperationalIntentResponse:
-      description: Response to peer request for the details of OperationalIntent with the given ID.
-      required:
-      - operational_intent
-      type: object
-      properties:
-        operational_intent:
-          $ref: '#/components/schemas/OperationalIntent'
-    SubscriptionCallbacks:
-      description: Endpoints that should be called when an applicable event occurs.  At
-        least one field must be specified.
-      type: object
-      properties:
-        identification_service_area_url:
-          $ref: '#/components/schemas/IdentificationServiceAreaURL'
-          description: If specified, other clients will be instructed by the DSS to
-            call this endpoint when an Identification Service Area relevant to this
-            Subscription is created, modified, or deleted.  Must implement PUT and
-            DELETE according to the `/uss/isas/{id}` path
-            API.
-        operational_intents_url:
-          $ref: '#/components/schemas/OperationalIntentDetailsURL'
-          description: If specified, other clients will be instructed by the DSS to
-            call this endpoint when an Operation relevant to this Subscription is
-            created, modified, or deleted.  Must implement POST according to the `/uss/ops/{id}`
-            path API.
-        constraints_url:
-          $ref: '#/components/schemas/ConstraintDetailsURL'
-          description: If specified, other clients will be instructed by the DSS to
-            call this endpoint when a Constraint relevant to this Subscription is
-            created, modified, or deleted.  Must implement POST according to the `/uss/constraints/{id}`
-            path API.
-    AirspaceConflictResponse:
-      description: Data provided when an airspace conflict was encountered.
-      type: object
-      properties:
-        message:
-          description: Human-readable message indicating what error occurred and/or
-            why.
-          type: string
-        entity_conflicts:
-          description: List of Entity references for which current proof of knowledge
-            was not provided.  If this field is present and contains elements, the
-            calling USS should query the details URLs for these Entities to obtain
-            their details and correct OVNs.  The OVNs can be used to update
-            the key, at which point the USS may retry this call.
-          type: array
-          items:
-            $ref: '#/components/schemas/EntityReference'
-        hash_conflicts:
-          description: List of `entity_ids` Hashes (one per DeconflictionKeyHash)
-            for which the corresponding entity_ovns did not match the current
-            versions of all listed Entities.  If this field is present and contains
-            elements, the calling USS should re-query the details of the relevant
-            Entities to obtain updated OVNs.
-          type: array
-          items:
-            $ref: '#/components/schemas/Hash'
-    OperationalIntentDetailsURL:
-      $ref: '#/components/schemas/URL'
-      description: |-
-        The URL at which the details of an OperationalIntent may be retrieved.  See `/uss/ops/{id}` path for specification of this endpoint.  This URL is the base OperationalIntents resource.  If this URL is specified as https://example.com/ops then the details for a particular {id} may be obtained at the URL https://example.com/ops/{id}.  This URL may not have a trailing / character.
-      example: https://example.com/ops
-    ConstraintDetailsURL:
-      $ref: '#/components/schemas/URL'
-      description: |-
-        The URL at which the details of a Constraint may be retrieved.  See `/uss/constraints/{id}` path for specification of this endpoint.
-        This URL is the base Constraints resource.  If this URL is specified as https://example.com/constraints then the details for a particular {id} may be obtained at the URL https://example.com/constraints/{id}.  This URL may not have a trailing / character.
-      example: https://example.com/constraints
-    ErrorReportsURL:
-      $ref: '#/components/schemas/URL'
-      description: |-
-        The URL at which an error report may be submitted.  See `/uss/error_reports/{id}` path for specification of this endpoint.
-        This URL is the base ErrorReports resource.  If this URL is specified as https://example.com/error_reports then an error report with {id} may be submitted at the URL https://example.com/error_reports/{id}.  This URL may not have a trailing / character.
-      example: https://example.com/error_reports
-    OperationalIntentPriority:
-      format: int32
-      description: Ordinal priority of this OperationalIntent.  Determined by client USS via a function of the details of the OperationalIntent according to relevant regulations.  The simplest (non-prioritized) of these functions would be one that returns 0 priority for any OperationalIntents.
-      type: integer
-    OperationalIntentState:
-      description: |-
-        State of an OperationalIntent.
-
-        `Proposed`: This OperationalIntent has not yet been fully deconflicted with other Entities, but the owning USS is pursuing negotiations to complete deconfliction.
-
-        `Accepted`: This OperationalIntent was fully deconflicted from other Entities at the time it changed to this state, but no aircraft associated with it are active yet.
-
-        `Activated`: One or more aircraft associated with this OperationalIntent are, or will imminently be, in flight.
-      enum:
-        - Proposed
-        - Accepted
-        - Activated
-      type: string
-    NegotiationsURL:
-      $ref: '#/components/schemas/URL'
-      description: |-
-        The URL at which negotiations may be requested.  See `/uss/negotiations/{id}` path for specification of this endpoint.
-        This URL is the base negotiations resource.  If this URL is specified as https://example.com/negotiations then a negotiation with {id} may be requested at the URL https://example.com/negotiations/{id}.  This URL may not have a trailing / character.
-      example: https://example.com/negotiations
-    NegotiationParameters:
-      description: Parameters of a negotiation request for a set of OperationalIntents and/or Constraints to be deconflicted with a proposed OperationalIntent.
-      required:
-        - proposed_operational_intent
-      type: object
-      properties:
-        proposed_operational_intent:
-          $ref: '#/components/schemas/OperationalIntent'
-          description: Full information of proposed OperationalIntent from which the conflicting_entities should be deconflicted.
-        conflicting_operational_intents:
-          type: array
-          items:
-            $ref: '#/components/schemas/EntityUUID'
-          description: OperationalIntents that the initiating USS is requesting be deconflicted from the proposed_operational_intent.
-        conflicting_constraints:
-          type: array
-          items:
-            $ref: '#/components/schemas/EntityUUID'
-          description: Constraints that the initiating DSS is requesting be deconflicted from (or an exemption added for) the proposed_operational_intent.
-    NegotiationResponse:
-      description: Response to a successful negotiation request to deconflict a set of OperationalIntents and/or Constraints from a proposed OperationalIntent.
-      type: object
-      properties:
-        operational_intents:
-          type: array
-          items:
-            $ref: '#/components/schemas/OperationalIntent'
-          description: Full information for updated OperationalIntents deconflicted in response to this negotiation request.
-        constraints:
-          type: array
-          items:
-            $ref: '#/components/schemas/Constraint'
-          description: Full information for updated Constraints deconflicted in response to this negotiation request.
-    GetHostNamesResponse:
-      description: Response to a request for information tracked by the DSS regarding the status of a particular hostname.
-      required:
-        - status
-        - version
-      type: object
-      properties:
-        status:
-          $ref: '#/components/schemas/HostNameStatus'
-        version:
-          $ref: '#/components/schemas/UUIDv4'
-          description: Current version of hostname status.  Must be provided to the DSS when changing the hostname's status.
-    HostNameStatus:
-      description: Status of a hostname as tracked by the DSS.
-      required:
-        - down
-      type: object
-      properties:
-        down:
-          type: boolean
-          description: If true, the DSS believes this hostname is down.  Future OperationalIntents whose details are hosted by this hostname may be disabled by the DSS if another USS wishes to plan in the area.
-    UpdateHostNameDownParameters:
-      description: Parameters of a request to change the status of a hostname's "down" status in the DSS.
-      required:
-        - down
-      type: object
-      properties:
-        down:
-          type: boolean
-          description: If true, the DSS should consider this hostname to be down.  Future OperationalIntents whose details are hosted by this hostname may be disabled by the DSS if another USS wishes to plan in the area.
-  securitySchemes:
-    AuthFromAuthorizationAuthority:
-      flows:
-        clientCredentials:
-          tokenUrl: https://example.com/oauth/token
-          scopes:
-            dss.read.identification_service_areas: Client may query, read, or create
-              subscriptions for Identification Service Areas for remote ID.  A remote
-              ID display provider shall be granted this scope upon request.
-            dss.write.identification_service_areas: Client may create, edit, and delete
-              Identification Service Areas for remote ID.  A remote ID service provider
-              shall be granted this scope upon request.
-            utm.read.operational_intents: Client may query, read, or create subscriptions for
-              OperationalIntents for UTM.
-            utm.write.operational_intents: Client may create, edit, and delete OperationalIntents for
-              UTM.
-            utm.read.constraints: Client may query, read, or create subscriptions
-              for Constraints for UTM.
-            utm.write.constraints: Client may create, edit, and delete Constraints
-              for UTM.
-            dss.write.hostnames: Client may update the status of hostnames in the DSS.
-      type: oauth2
-      description: |-
-        Authorization from, or on behalf of, an authorization authority.  This authority shall issue access tokens that are JSON Web Tokens as defined in RFC 7519, using the `RS256` algorithm for the signature, and publish to all providers the public key for verifying that signature.
-
-        The following fields shall be included in the JWT claim for access tokens issued by this authority:
-        * `iss`, with the URL at which the token generation request was received.
-        * `exp`, with a time no further than 1 hour in the future.
-        * `sub`, with unique ID of the client requesting the access token.
-        * `scope`, with an array of strings indicating the scopes granted.
-
-        Multiple scopes for a single token shall be granted if requested.  The tokens granted by this authority shall protect against reuse of received tokens to impersonate the sender to other recipients (via use of the `aud` claim or other means).
-
-        Clients shall provide these access tokens in an `Authorization` header in the form `Bearer <token>` in accordance with RFC 6750.
-security:
-- AuthFromAuthorizationAuthority:
-  - dss.read.identification_service_areas
-  - dss.write.identification_service_areas
-  - utm.read.operational_intents
-  - utm.write.operational_intents
-  - utm.read.constraints
-  - utm.write.constraints
-  - dss.write.hostnames
-tags:
-- name: dss_isas
-  description: Endpoints exposed by the DSS server for Identification Service Area Entities.
-- name: dss_ops
-  description: Endpoints exposed by the DSS server for OperationalIntentReference Entities.
-- name: dss_constraints
-  description: Endpoints exposed by the DSS server for ConstraintReference Entities.
-- name: dss_subscriptions
-  description: Endpoints exposed by the DSS server for Subscriptions.
-- name: dss_hostnames
-  description: Endpoints exposed by the DSS server for tracking hostname statuses.
-- name: p2p_rid
-  description: Endpoints exposed by remote ID service providers for peer-peer communication.
-- name: p2p_utm
-  description: Endpoints exposed by UTM service providers for peer-peer communication.
+            * Despite repeated attempts, the DSS was unable to complete the update because of other simultaneous changes.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: The client issued too many requests in a short period of time.
