@@ -21,15 +21,15 @@ paths:
     description: Interface to Operation references in the DSS.
     post:
       consumes:
-      - application/json
+        - application/json
       produces:
-      - application/json
+        - application/json
       parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/SearchOperationReferenceParameters'
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/SearchOperationReferenceParameters'
       responses:
         '200':
           description: Operations were successfully retrieved.
@@ -60,11 +60,11 @@ paths:
           schema:
             $ref: '#/definitions/ErrorResponse'
       security:
-      - Authority:
-        - utm.strategic_coordination
+        - Authority:
+            - utm.strategic_coordination
       tags:
-      - Operation references
-      - dss
+        - Operation references
+        - dss
       operationId: searchOpeationReferences
       summary: >-
         Retrieve all Operation references in the specified area/volume/time from
@@ -74,13 +74,13 @@ paths:
       area, altitude-range, and time-range.
   '/dss/v1/operation_references/{entityuuid}':
     parameters:
-    - description: EntityUUID of the Operation.
-      in: path
-      name: entityuuid
-      required: true
+      - description: EntityUUID of the Operation.
+        in: path
+        name: entityuuid
+        required: true
     delete:
       produces:
-      - application/json
+        - application/json
       parameters: []
       responses:
         '200':
@@ -120,16 +120,16 @@ paths:
           schema:
             $ref: '#/definitions/ErrorResponse'
       security:
-      - Authority:
-        - utm.strategic_coordination
+        - Authority:
+            - utm.strategic_coordination
       tags:
-      - Operation references
-      - dss
+        - Operation references
+        - dss
       operationId: deleteOpeationReference
       summary: Remove the specified Operation reference from the DSS.
     get:
       produces:
-      - application/json
+        - application/json
       parameters: []
       responses:
         '200':
@@ -161,24 +161,24 @@ paths:
           schema:
             $ref: '#/definitions/ErrorResponse'
       security:
-      - Authority:
-        - utm.strategic_coordination
+        - Authority:
+            - utm.strategic_coordination
       tags:
-      - Operation references
-      - dss
+        - Operation references
+        - dss
       operationId: getOpeationReference
       summary: Retrieve the specified Operation reference from the DSS.
     put:
       consumes:
-      - application/json
+        - application/json
       produces:
-      - application/json
+        - application/json
       parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/PutOperationReferenceParameters'
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/PutOperationReferenceParameters'
       responses:
         '200':
           description: An Operation reference was updated successfully in the DSS.
@@ -227,11 +227,11 @@ paths:
           schema:
             $ref: '#/definitions/ErrorResponse'
       security:
-      - Authority:
-        - utm.strategic_coordination
+        - Authority:
+            - utm.strategic_coordination
       tags:
-      - Operation references
-      - dss
+        - Operation references
+        - dss
       operationId: updateOpeationReference
       summary: Create/Update the specified Operation reference in the DSS.
     summary: CRUD endpoint for a specified Operation reference in the DSS.
@@ -263,7 +263,7 @@ definitions:
           plans to allow other options. FIXM and AIXM allow for 'SFC' which is
           equivalent to AGL.
         enum:
-        - W84
+          - W84
         type: string
       units:
         description: |-
@@ -271,9 +271,9 @@ definitions:
           FIXM 4.2. Currently, UTM only allows meters with no immediate plans
           to allow other options.
         enum:
-        - M
+          - M
         type: string
-      value:
+      altitude_value:
         description: |-
           The numeric value of the altitude. Note that min and max values are
           added as a sanity check. As use cases evolve and more options are
@@ -286,9 +286,9 @@ definitions:
         minimum: -8000
         type: number
     required:
-    - value
-    - reference
-    - units
+      - value
+      - reference
+      - units
     type: object
   ChangeConstraintReferenceResponse:
     description: >-
@@ -309,7 +309,7 @@ definitions:
           $ref: '#/definitions/SubscriberToNotify'
         type: array
     required:
-    - subscribers
+      - subscribers
     type: object
   ChangeOperationReferenceResponse:
     description: |-
@@ -334,8 +334,8 @@ definitions:
           $ref: '#/definitions/SubscriberToNotify'
         type: array
     required:
-    - subscribers
-    - operation_reference
+      - subscribers
+      - operation_reference
     type: object
   Circle:
     description: >-
@@ -354,7 +354,7 @@ definitions:
           type:
             description: The type of Geometry. Must be Point.
             enum:
-            - Point
+              - Point
             type: string
         type: object
       properties:
@@ -364,19 +364,19 @@ definitions:
           The type of Geometry. In this case, must be 'Feature' per GeoJSON
           spec.
         enum:
-        - Feature
+          - Feature
         type: string
     required:
-    - type
-    - geometry
-    - properties
+      - type
+      - geometry
+      - properties
     type: object
   CircleProperties:
     properties:
       radius:
         $ref: '#/definitions/Radius'
     required:
-    - radius
+      - radius
     type: object
   Constraint:
     description: Full specification of a UTM Constraint.
@@ -386,15 +386,15 @@ definitions:
       reference:
         $ref: '#/definitions/ConstraintReference'
     required:
-    - reference
-    - details
+      - reference
+      - details
     type: object
   ConstraintDetails:
     description: >-
       Details of a UTM Constraint. Note that this data is not stored in the DSS;
       only with the clients.
     properties:
-      type:
+      airspace_type:
         description: Type of airspace feature this Constraint represents.
         example: NonUTMAircraftOperations
         type: string
@@ -407,7 +407,7 @@ definitions:
         minItems: 1
         type: array
     required:
-    - volumes
+      - volumes
     type: object
   ConstraintReference:
     description: >-
@@ -466,12 +466,12 @@ definitions:
         minimum: 1
         type: integer
     required:
-    - id
-    - owner
-    - version
-    - time_start
-    - time_end
-    - uss_base_url
+      - id
+      - owner
+      - version
+      - time_start
+      - time_end
+      - uss_base_url
     type: object
   ConstraintUssBaseURL:
     $ref: '#/definitions/UssBaseURL'
@@ -486,7 +486,7 @@ definitions:
       subscription:
         $ref: '#/definitions/Subscription'
     required:
-    - subscription
+      - subscription
     type: object
   EntityOVN:
     description: >-
@@ -562,9 +562,9 @@ definitions:
         description: URL of request that resulted in an error.
         type: string
     required:
-    - url
-    - response_code
-    - problem
+      - url
+      - response_code
+      - problem
     type: object
   ErrorResponse:
     description: |-
@@ -582,7 +582,7 @@ definitions:
       constraint:
         $ref: '#/definitions/Constraint'
     required:
-    - constraint
+      - constraint
     type: object
   GetConstraintReferenceResponse:
     description: Response to DSS request for the ConstraintReference with the given ID.
@@ -590,7 +590,7 @@ definitions:
       constraint_reference:
         $ref: '#/definitions/ConstraintReference'
     required:
-    - constraint_reference
+      - constraint_reference
     type: object
   GetOperationDetailsResponse:
     description: Response to peer request for the details of Operation with the given ID.
@@ -598,7 +598,7 @@ definitions:
       operation:
         $ref: '#/definitions/Operation'
     required:
-    - operation
+      - operation
     type: object
   GetOperationReferenceResponse:
     description: Response to DSS request for the OperationReference with the given ID.
@@ -606,7 +606,7 @@ definitions:
       operation_reference:
         $ref: '#/definitions/OperationReference'
     required:
-    - operation_reference
+      - operation_reference
     type: object
   GetOperationTelemetryResponse:
     description: Response to a peer request for telemetry of an off-nominal Operation.
@@ -614,7 +614,7 @@ definitions:
       telemetry:
         $ref: '#/definitions/VehicleTelemetry'
     required:
-    - telemetry
+      - telemetry
     type: object
   GetSubscriptionResponse:
     description: Response to DSS request for the subscription with the given id.
@@ -622,7 +622,7 @@ definitions:
       subscription:
         $ref: '#/definitions/Subscription'
     required:
-    - subscription
+      - subscription
     type: object
   ImplicitSubscriptionParameters:
     description: >-
@@ -647,7 +647,7 @@ definitions:
 
           notifications for relevant changes in Operations.
     required:
-    - uss_base_url
+      - uss_base_url
     type: object
   Key:
     default: []
@@ -678,8 +678,8 @@ definitions:
       Longitude/Latitude pair (in that order) used for specifying geographical
       vertex. Specified as an array. Order is important!
     example:
-    - -122.106325
-    - 47.660898
+      - -122.106325
+      - 47.660898
     items:
       $ref: '#/definitions/LongitudeOrLatitude'
     maxItems: 2
@@ -717,8 +717,8 @@ definitions:
       reference:
         $ref: '#/definitions/OperationReference'
     required:
-    - reference
-    - details
+      - reference
+      - details
     type: object
   OperationDetails:
     description: >-
@@ -742,7 +742,7 @@ definitions:
         minItems: 1
         type: array
     required:
-    - volumes
+      - volumes
     type: object
   OperationReference:
     description: >-
@@ -812,13 +812,13 @@ definitions:
         minimum: 1
         type: integer
     required:
-    - id
-    - owner
-    - version
-    - time_start
-    - time_end
-    - uss_base_url
-    - subscription_id
+      - id
+      - owner
+      - version
+      - time_start
+      - time_end
+      - uss_base_url
+      - subscription_id
     type: object
   OperationState:
     description: >-
@@ -881,11 +881,11 @@ definitions:
       'Ended': This Operation has ended (due to either an Operator-induced
       change or flight completion).
     enum:
-    - Accepted
-    - Activated
-    - NonConforming
-    - Contingent
-    - Ended
+      - Accepted
+      - Activated
+      - NonConforming
+      - Contingent
+      - Ended
     type: string
   OperationUssBaseURL:
     $ref: '#/definitions/UssBaseURL'
@@ -907,7 +907,7 @@ definitions:
       type:
         description: 'The type of Geometry. In this case, must be ''Point'' per GeoJSON spec.'
         enum:
-        - Point
+          - Point
         type: string
     type: object
   Polygon:
@@ -929,7 +929,7 @@ definitions:
         items:
           description: |-
             The number of vertices in this polygon. From RFC7946:
-              o  A linear ring is a closed LineString with four or more positions.
+              o  A linear ring is a closed Linestring with four or more positions.
               o  The first and last positions are equivalent, and they MUST contain
               identical values; their representation SHOULD also be identical.
               o  A linear ring is the boundary of a surface or the boundary of a
@@ -954,11 +954,11 @@ definitions:
           array of size one. This implies there are no interior rings allowed
           currently.
         enum:
-        - Polygon
+          - Polygon
         type: string
     required:
-    - type
-    - coordinates
+      - type
+      - coordinates
     type: object
   Position:
     description: |-
@@ -991,34 +991,34 @@ definitions:
       This is the NACp enumeration from ADS-B, plus 1m for a more complete range
       for UAS.
     enum:
-    - HAUnknown
-    - HA10NMPlus
-    - HA10NM
-    - HA4NM
-    - HA2NM
-    - HA1NM
-    - HA05NM
-    - HA03NM
-    - HA01NM
-    - HA005NM
-    - HA30m
-    - HA10m
-    - HA3m
-    - HA1m
+      - HAUnknown
+      - HA10NMPlus
+      - HA10NM
+      - HA4NM
+      - HA2NM
+      - HA1NM
+      - HA05NM
+      - HA03NM
+      - HA01NM
+      - HA005NM
+      - HA30m
+      - HA10m
+      - HA3m
+      - HA1m
     type: string
   PositionAccuracyVertical:
     description: |-
       Vertical error that is likely to be present in this reported position.
       This is the GVA enumeration from ADS-B, plus some finer values for UAS.
     enum:
-    - VAUnknown
-    - VA150mPlus
-    - VA150m
-    - VA45m
-    - VA25m
-    - VA10m
-    - VA3m
-    - VA1m
+      - VAUnknown
+      - VA150mPlus
+      - VA150m
+      - VA45m
+      - VA25m
+      - VA10m
+      - VA3m
+      - VA1m
     type: string
   PutConstraintDetailsParameters:
     description: >-
@@ -1050,8 +1050,8 @@ definitions:
         minItems: 1
         type: array
     required:
-    - constraint_id
-    - subscriptions
+      - constraint_id
+      - subscriptions
     type: object
   PutConstraintReferenceParameters:
     description: >-
@@ -1080,9 +1080,9 @@ definitions:
       uss_base_url:
         $ref: '#/definitions/ConstraintUssBaseURL'
     required:
-    - extents
-    - old_version
-    - uss_base_url
+      - extents
+      - old_version
+      - uss_base_url
     type: object
   PutOperationDetailsParameters:
     description: >-
@@ -1118,8 +1118,8 @@ definitions:
         minItems: 1
         type: array
     required:
-    - operation_id
-    - subscriptions
+      - operation_id
+      - subscriptions
     type: object
   PutOperationReferenceParameters:
     description: >-
@@ -1209,10 +1209,10 @@ definitions:
       uss_base_url:
         $ref: '#/definitions/OperationUssBaseURL'
     required:
-    - extents
-    - old_version
-    - state
-    - uss_base_url
+      - extents
+      - old_version
+      - state
+      - uss_base_url
     type: object
   PutSubscriptionParameters:
     description: Parameters for a request to create/update a subscription in the DSS.
@@ -1250,9 +1250,9 @@ definitions:
       uss_base_url:
         $ref: '#/definitions/SubscriptionUssBaseURL'
     required:
-    - extents
-    - old_version
-    - uss_base_url
+      - extents
+      - old_version
+      - uss_base_url
     type: object
   PutSubscriptionResponse:
     description: Response for a request to create or update a subscription.
@@ -1282,14 +1282,14 @@ definitions:
       subscription:
         $ref: '#/definitions/Subscription'
     required:
-    - subscription
+      - subscription
     type: object
   Radius:
     properties:
       units:
         description: FIXM-compatible units.  Only meters ("M") are acceptable for UTM.
         enum:
-        - M
+          - M
         type: string
       value:
         description: >-
@@ -1299,8 +1299,8 @@ definitions:
         format: float
         type: number
     required:
-    - value
-    - units
+      - value
+      - units
     type: object
   SearchConstraintReferenceParameters:
     description: >-
@@ -1320,7 +1320,7 @@ definitions:
           $ref: '#/definitions/ConstraintReference'
         type: array
     required:
-    - constraint_references
+      - constraint_references
     type: object
   SearchOperationReferenceParameters:
     description: >-
@@ -1340,7 +1340,7 @@ definitions:
           $ref: '#/definitions/OperationReference'
         type: array
     required:
-    - operation_references
+      - operation_references
     type: object
   SearchSubscriptionParameters:
     description: >-
@@ -1360,7 +1360,7 @@ definitions:
           $ref: '#/definitions/Subscription'
         type: array
     required:
-    - subscriptions
+      - subscriptions
     type: object
   SubscriberToNotify:
     description: >-
@@ -1384,8 +1384,8 @@ definitions:
       uss_base_url:
         $ref: '#/definitions/SubscriptionUssBaseURL'
     required:
-    - subscriptions
-    - uss_base_url
+      - subscriptions
+      - uss_base_url
     type: object
   Subscription:
     description: |-
@@ -1455,10 +1455,10 @@ definitions:
         minimum: 1
         type: integer
     required:
-    - id
-    - version
-    - notification_index
-    - uss_base_url
+      - id
+      - version
+      - notification_index
+      - uss_base_url
     type: object
   SubscriptionNotificationIndex:
     default: 0
@@ -1477,8 +1477,8 @@ definitions:
       subscription_id:
         $ref: '#/definitions/SubscriptionUUID'
     required:
-    - subscription_id
-    - notification_index
+      - subscription_id
+      - notification_index
     type: object
   SubscriptionUUID:
     $ref: '#/definitions/UUIDv4'
@@ -1497,7 +1497,7 @@ definitions:
     properties:
       format:
         enum:
-        - RFC3339
+          - RFC3339
         type: string
       value:
         description: RFC3339-formatted time/date string.  The time zone must be 'Z'.
@@ -1505,13 +1505,12 @@ definitions:
         format: date-time
         type: string
     required:
-    - value
-    - format
+      - value
+      - format
     type: object
   UUIDv4:
     description: Universally-unique identifier (version 4).
     example: 03e5572a-f733-49af-bc14-8a18bd53ee39
-    format: uuid
     maxLength: 36
     minLength: 36
     pattern: >-
@@ -1540,8 +1539,8 @@ definitions:
       velocity:
         $ref: '#/definitions/Velocity'
     required:
-    - id
-    - time_measured
+      - id
+      - time_measured
     type: object
   Velocity:
     properties:
@@ -1562,11 +1561,11 @@ definitions:
         type: number
       units_speed:
         enum:
-        - MetersSecond
+          - MetersSecond
         type: string
     required:
-    - speed
-    - units_speed
+      - speed
+      - units_speed
     type: object
   Volume3D:
     description: >-
@@ -1588,8 +1587,8 @@ definitions:
         $ref: '#/definitions/Polygon'
         description: A polygonal geographic shape on the surface of the earth.
     required:
-    - altitude_lower
-    - altitude_upper
+      - altitude_lower
+      - altitude_upper
     type: object
   Volume4D:
     description: Contiguous block of geographic spacetime.
@@ -1603,7 +1602,7 @@ definitions:
       volume:
         $ref: '#/definitions/Volume3D'
     required:
-    - volume
+      - volume
     type: object
 securityDefinitions:
   Authority:
@@ -1644,30 +1643,30 @@ securityDefinitions:
     tokenUrl: 'https://token_vendor.com/oauth/token'
     type: oauth2
 security:
-- Authority:
-  - utm.strategic_coordination
-  - utm.constraint_management
-  - utm.constraint_consumption
+  - Authority:
+      - utm.strategic_coordination
+      - utm.constraint_management
+      - utm.constraint_consumption
 tags:
-- description: >-
-    Endpoints exposed by the DSS for interaction with references to
-    Operations.
-  name: Operation references
-- description: Endpoints exposed by USSs for interaction with details of Operations.
-  name: Operation details
-- description: >-
-    Endpoints exposed by the DSS for interaction with references to
-    Constraints.
-  name: Constraint references
-- description: Endpoints exposed by USSs for interaction with details of Constraints.
-  name: Constraint details
-- description: Endpoints exposed by the DSS for interaction with Subscription entities.
-  name: Subscriptions
-- description: Endpoints exposed by the DSS for reporting peer DSS issues.
-  name: Reports
-- description: Endpoints exposed by the DSS server.
-  name: dss
-- description: Endpoints exposed by UTM USSs for peer-peer communication.
-  name: p2p_utm
+  - description: >-
+      Endpoints exposed by the DSS for interaction with references to
+      Operations.
+    name: Operation references
+  - description: Endpoints exposed by USSs for interaction with details of Operations.
+    name: Operation details
+  - description: >-
+      Endpoints exposed by the DSS for interaction with references to
+      Constraints.
+    name: Constraint references
+  - description: Endpoints exposed by USSs for interaction with details of Constraints.
+    name: Constraint details
+  - description: Endpoints exposed by the DSS for interaction with Subscription entities.
+    name: Subscriptions
+  - description: Endpoints exposed by the DSS for reporting peer DSS issues.
+    name: Reports
+  - description: Endpoints exposed by the DSS server.
+    name: dss
+  - description: Endpoints exposed by UTM USSs for peer-peer communication.
+    name: p2p_utm
 x-components: {}
 
